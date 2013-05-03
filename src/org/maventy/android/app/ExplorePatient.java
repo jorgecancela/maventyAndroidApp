@@ -1,0 +1,287 @@
+package org.maventy.android.app;
+
+import java.util.List;
+
+import org.maventy.R;
+import org.maventy.android.app.visit.MaventyAndroid;
+import org.maventy.android.app.visit.ShowResults;
+import org.maventy.android.db.PatientsDataSource;
+import org.maventy.android.db.VisitsDataSource;
+import org.maventy.android.utils.Constants;
+import org.maventy.android.utils.DataParcelable;
+import org.maventy.android.utils.Patient;
+import org.maventy.android.utils.Tools;
+import org.maventy.android.utils.VisitDB;
+
+import android.app.Activity;
+import android.app.AlertDialog;
+import android.content.Context;
+import android.content.DialogInterface;
+import android.content.Intent;
+import android.graphics.Color;
+import android.os.Bundle;
+import android.util.Log;
+import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.AdapterView;
+import android.widget.AdapterView.OnItemClickListener;
+import android.widget.ArrayAdapter;
+import android.widget.Button;
+import android.widget.ImageView;
+import android.widget.ListView;
+import android.widget.TextView;
+
+/**
+ ** This activity receives a patient ID as input and shows the info for such patient as well as his/her visits
+ */
+public class ExplorePatient extends Activity {
+    private TextView extView_info_name, extView_info_residence_birthdate, extView_info_caregiver;
+    private Button addNewVisit, editPatient, deletePatient, backButton;
+    private ArrayAdapter<VisitDB> adapter_visit;
+    private PatientsDataSource datasource;
+    private VisitsDataSource v_datasource;
+    private List<VisitDB> values_visit;
+    private AlertDialog alertDialog;
+    private Patient currentPatient;
+    private static ListView lv_visit;
+
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+	super.onCreate(savedInstanceState);
+	    
+	// Read the last configuration stored in the database and setup the configuration
+	Tools.setContext(this.getApplicationContext());
+	Tools.setSettings(this.getApplicationContext());
+	Tools.setActivity(ExplorePatient.this);
+
+	alertDialog =  new AlertDialog.Builder(ExplorePatient.this).create();
+
+	setContentView(R.layout.db_patient);  
+
+	datasource = new PatientsDataSource(this);
+	v_datasource = new VisitsDataSource(this);
+	v_datasource.open();
+
+	extView_info_name = (TextView) findViewById(R.id.textView_db_patient_info_1);
+	extView_info_residence_birthdate = (TextView) findViewById(R.id.textView_db_patient_info_2);
+	extView_info_caregiver = (TextView) findViewById(R.id.textView_db_patient_info_3);
+
+	Intent i = getIntent();
+	DataParcelable currentPatientID = (DataParcelable) i.getParcelableExtra(Constants.PATIENT_ID_PARCEL_STRING);
+		
+	datasource.open();
+	currentPatient = datasource.getPatientById(currentPatientID.intParcelable);
+
+	extView_info_name.setText(currentPatient.toString()); 
+	extView_info_residence_birthdate.setText(currentPatient.toStringResidenceBirthdate()); 
+	extView_info_caregiver.setText(currentPatient.toStringCaregiver()); 
+
+	values_visit = v_datasource.getAllVisitsByID(currentPatientID.intParcelable);
+
+	datasource.close();
+	v_datasource.close();
+	
+	// Use the SimpleCursorAdapter to show the elements in a ListView
+	adapter_visit = new VisitDBAdapter(this, R.layout.item_list, values_visit);
+		
+	lv_visit = (ListView)findViewById(R.id.list_visits);
+        
+	lv_visit.setAdapter(adapter_visit);
+	lv_visit.setTextFilterEnabled(true);
+
+	lv_visit.setOnItemClickListener(new OnItemClickListener() {
+	    // When an item in the List is selected ShowResults activity is called with the visit ID as argument
+	    @Override
+	    public void onItemClick(AdapterView<?> parent, View view, int position, long id) {		     
+		try {	
+		    VisitDB visit = (VisitDB) lv_visit.getAdapter().getItem(position); 
+		    DataParcelable dparcelableVisit = new DataParcelable((int) visit.getId());      			      	
+		    DataParcelable dparcelablePatient = new DataParcelable(visit.getPID());      
+		    
+		    Intent k = new Intent(ExplorePatient.this, ShowResults.class);
+		    k.putExtra(Constants.VISIT_ID_PARCEL_STRING, dparcelableVisit);
+		    k.putExtra(Constants.PATIENT_ID_PARCEL_STRING, dparcelablePatient);
+		    
+		    startActivity(k);	     
+		} catch(Exception e) {
+		    Log.v("ExplorePatient", "Error trying to start ShowResults activity: " + e.toString());
+		}
+	    }
+	});
+
+	addNewVisit = (Button) findViewById(R.id.button_db_patient_info_new_visit);
+	addNewVisit.setOnClickListener(new View.OnClickListener() { 
+	    // When an item in the List is selected ShowResults activity is called with the visit ID as argument
+	    @Override
+	    public void onClick(View view) {
+		try {	
+		    v_datasource.close();
+		    datasource.close();
+
+		    DataParcelable dparcelable = new DataParcelable((int) currentPatient.getId()); 
+
+		    Intent k = new Intent(ExplorePatient.this, MaventyAndroid.class);
+		    k.putExtra(Constants.PATIENT_ID_PARCEL_STRING, dparcelable);
+		    startActivity(k);        		     
+		} catch(Exception e) {
+		    Log.v("ExplorePatient", "Error trying to start MaventyAndroid activity: " + e.toString());
+		}	        		
+	    }
+	});  
+
+	editPatient = (Button) findViewById(R.id.button_db_patient_info_edit);
+	editPatient.setOnClickListener(new View.OnClickListener() { 
+
+	    @Override
+	    public void onClick(View view) {
+		try {	
+		    v_datasource.close();
+		    datasource.close();
+
+		    DataParcelable dparcelable = new DataParcelable((int) currentPatient.getId()); 
+
+		    Intent k = new Intent(ExplorePatient.this, AddNewPatient.class);
+		    k.putExtra(Constants.PATIENT_ID_PARCEL_STRING, dparcelable);
+		    startActivity(k);        		     
+		} catch(Exception e) {
+		    Log.v("ExplorePatient", "Error trying to start AddNewPatient activity to edit this patient: " + e.toString());
+		}	        		
+	    }
+	});
+
+	deletePatient = (Button) findViewById(R.id.button_db_patient_info_delete);
+	deletePatient.setOnClickListener(new View.OnClickListener() { 
+
+	    @Override
+	    public void onClick(View view) {
+		try {	
+
+		    //Ask the user if they want to delete the patient
+		    //AlertDialog alertDialog =  new AlertDialog.Builder(myTools.getContext()).create();
+		    alertDialog.setIcon(android.R.drawable.ic_dialog_alert);
+		    alertDialog.setTitle(R.string.db_patient_delete);
+		    alertDialog.setMessage(Tools.getStringResource(R.string.db_patient_delete_message));
+		    alertDialog.setButton(Tools.getStringResource(R.string.db_patient_delete_yes), new DialogInterface.OnClickListener() {
+			@Override
+			public void onClick(DialogInterface dialog, int which) {
+			    datasource.open();
+			    datasource.deletePatient(currentPatient.getId());
+
+			    Intent k = new Intent(ExplorePatient.this, ExploreDatabase.class);
+			    startActivity(k); 
+			    Tools.showToastMessage(Tools.getContext(), Tools.getStringResource(R.string.db_patient_delete_confirmation_message));
+			}
+		    });
+
+		    alertDialog.setButton2(Tools.getStringResource(R.string.db_patient_delete_no), new DialogInterface.OnClickListener() {
+			@Override
+			public void onClick(DialogInterface dialog, int which) {
+			}
+		    });
+
+		    alertDialog.show();
+
+		    v_datasource.close();
+		    datasource.close();
+		} catch(Exception e) {
+		    Log.v("ExplorePatient", "Error deleting patient: " + e.toString());
+		}	        		
+	    }
+	}); 
+   
+        backButton = (Button) findViewById(R.id.button_back_db_patient);
+        backButton.setOnClickListener(new View.OnClickListener() {
+	    @Override
+	    public void onClick(View view) {
+		try {	
+		    Intent k = new Intent(ExplorePatient.this, ExploreDatabase.class);
+		    startActivity(k);
+
+		} catch(Exception e) {
+		    Tools.showToastMessageAndLog(Tools.getContext(), Tools.getStringResource(R.string.unknown_error),
+		           "ExplorePatient", "Error trying to go back: " + e.toString());
+		}      		
+	    }
+	});  
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+	MenuInflater inflater = getMenuInflater();
+	inflater.inflate(R.menu.menu_button, menu);
+	return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+
+	Intent k = Tools.menuSwitcher(this.getApplicationContext(), item);
+
+	if(k == null) {
+	    return false;
+	} else {
+	    startActivity(k);
+	    return true;
+	}
+    }
+
+    @Override
+    protected void onPause() {	 
+	datasource.close();
+	v_datasource.close();
+	super.onPause();
+    }
+
+    @Override
+    protected void onResume() {	
+	super.onResume();
+    }
+    
+    // Helps to customize the ListView
+    // color to red if alarm
+    // warning icon to indicate that the visit has been already uploaded
+    public class VisitDBAdapter extends ArrayAdapter<VisitDB> {
+	private List<VisitDB> visits;
+
+	public VisitDBAdapter(Context context, int view, List<VisitDB> passedVisits) {
+	    super(context, view, passedVisits);
+	    visits = passedVisits;
+	}
+
+	@Override
+	public int getCount() {
+	    return visits.size();
+	}
+
+	@Override
+	public View getView(int position, View convertView, ViewGroup parent) {
+	    View currentView = convertView;
+	    		
+	    LayoutInflater currentViewInflater = (LayoutInflater)getContext().getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+	    currentView = currentViewInflater.inflate(R.layout.item_list, null);
+
+	    VisitDB currentVisit = visits.get(position);
+
+	    TextView text = (TextView) currentView.findViewById(R.id.textView_item_list);
+	    text.setText(currentVisit.toString());
+	    ImageView image = (ImageView) currentView.findViewById(R.id.imageView_item_list);
+	    ImageView image_alarm = (ImageView) currentView.findViewById(R.id.imageView_item_list_alarm);
+
+	    if(currentVisit.getUploadDate() == null){
+		image.setVisibility(View.INVISIBLE);
+	    }
+
+	    if(currentVisit.hasRaisedAnAlarm()){
+		text.setTextColor(Color.RED);
+	    }else{
+		image_alarm.setVisibility(View.INVISIBLE);
+	    }
+
+	    return currentView;
+	}
+    }
+}

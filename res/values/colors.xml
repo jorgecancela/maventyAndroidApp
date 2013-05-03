@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="title_background">#ff355689</color>
+    <color name="title_text">#ffffffff</color>
+    <color name="title_separator">#40ffffff</color>
+    
+    <color name="dark_green">#4B8A08</color>    
+    <color name="light_green">#5FB404</color>    
+    <color name="white">#FFF</color>    
+    <color name="black">#000</color>   
+    <color name="forms_grey">#888</color> 
+    <color name="light_grey">#E2E2E2</color> 
+    <color name="dark_grey">#1C1C1C</color>
+    
+    
+    
+    
+   
+    
+</resources>

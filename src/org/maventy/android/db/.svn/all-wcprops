@@ -1,0 +1,29 @@
+K 25
+svn:wc:ra_dav:version-url
+V 78
+/svn/MalNaturedSoftware/!svn/ver/378/MaventyAndroid/src/org/maventy/android/db
+END
+VisitsDataSource.java
+K 25
+svn:wc:ra_dav:version-url
+V 100
+/svn/MalNaturedSoftware/!svn/ver/378/MaventyAndroid/src/org/maventy/android/db/VisitsDataSource.java
+END
+SettingsDataSource.java
+K 25
+svn:wc:ra_dav:version-url
+V 102
+/svn/MalNaturedSoftware/!svn/ver/378/MaventyAndroid/src/org/maventy/android/db/SettingsDataSource.java
+END
+MySQLiteHelper.java
+K 25
+svn:wc:ra_dav:version-url
+V 98
+/svn/MalNaturedSoftware/!svn/ver/378/MaventyAndroid/src/org/maventy/android/db/MySQLiteHelper.java
+END
+PatientsDataSource.java
+K 25
+svn:wc:ra_dav:version-url
+V 102
+/svn/MalNaturedSoftware/!svn/ver/378/MaventyAndroid/src/org/maventy/android/db/PatientsDataSource.java
+END

@@ -1,0 +1,335 @@
+package org.maventy.android.app;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import org.apache.http.NameValuePair;
+import org.apache.http.message.BasicNameValuePair;
+import org.crypto.Crypto;
+import org.maventy.R;
+import org.maventy.android.Main;
+import org.maventy.android.db.PatientsDataSource;
+import org.maventy.android.db.SettingsDataSource;
+import org.maventy.android.db.VisitsDataSource;
+import org.maventy.android.interoperability.NetworkTools;
+import org.maventy.android.utils.Constants;
+import org.maventy.android.utils.Patient;
+import org.maventy.android.utils.SettingsDB;
+import org.maventy.android.utils.Tools;
+import org.maventy.android.utils.VisitDB;
+
+import android.app.Activity;
+import android.app.ProgressDialog;
+import android.content.Intent;
+import android.os.AsyncTask;
+import android.os.Bundle;
+import android.util.Log;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
+import android.view.View;
+import android.widget.Button;
+import android.widget.ProgressBar;
+import android.widget.TextView;
+
+/**
+ * This method creates an AsyncTask to upload all the local visits in background. In foreground a Progress Dialog
+ * is shown.
+ * 
+ * @author jcancela
+ */
+public class UploadVisit extends Activity {     
+    private Button uploadVisits, backButton;
+    private TextView show_number_of_visits;
+    private PatientsDataSource datasource;
+    private VisitsDataSource v_datasource;
+    private Boolean patientFound = false;
+    private List<VisitDB> visitsToUpload;
+    private SettingsDB currentSettings;
+    private ProgressBar progressBar;
+    private String patientID = "";
+    private ProgressDialog pd;
+    
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+	super.onCreate(savedInstanceState);
+
+	// Read the last configuration stored in the database and setup the
+	// configuration
+	Tools.setContext(this.getApplicationContext());
+	Tools.setSettings(this);
+	Tools.setActivity(UploadVisit.this);
+	
+	setContentView(R.layout.upload);  
+
+	progressBar = (ProgressBar) findViewById(R.id.progressbar_Horizontal);
+
+	try {
+	    datasource = new PatientsDataSource(this);
+	    datasource.open();
+
+	    v_datasource = new VisitsDataSource(this);
+	    v_datasource.open();
+	} catch (Exception e) {
+	    Tools.showToastMessageAndLog(Tools.getContext(), Tools.getStringResource(R.string.unknown_error),
+		    "UploadVisit", "Error opening the databases: " + e.toString());
+	}
+
+	show_number_of_visits = (TextView) findViewById(R.id.textView_number_of_visits);
+	visitsToUpload = v_datasource.getAllVisitsToUpload();
+	show_number_of_visits.setText(Integer.toString(visitsToUpload.size()));
+
+	uploadVisits = (Button) findViewById(R.id.button_upload_visits);
+	uploadVisits.setOnClickListener(new View.OnClickListener() { 
+	    @Override
+	    public void onClick(View view) {
+		try {
+		    uploadVisits.setClickable(false);
+		     new UpdateProgress().execute();   
+		} catch (Exception e) {
+		    Tools.showToastMessageAndLog(Tools.getContext(), Tools.getStringResource(R.string.unknown_error),
+			    "UploadVisit", "Error trying to start UpdateProgress AsyncTask: " + e.toString());
+		}	        		
+	    }
+	});
+
+	backButton = (Button) findViewById(R.id.button_back_upload);
+	backButton.setOnClickListener(new View.OnClickListener() { 
+	    @Override
+	    public void onClick(View view) {
+		try {	
+		    Intent k = new Intent(UploadVisit.this, Main.class);
+		    startActivity(k);
+		} catch (Exception e) {
+		    Tools.showToastMessageAndLog(Tools.getContext(), Tools.getStringResource(R.string.unknown_error),
+			    "UploadVisit", "Error trying to go back: " + e.toString());
+		}      		
+	    }
+	});
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+	MenuInflater inflater = getMenuInflater();
+	inflater.inflate(R.menu.menu_button, menu);
+	return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+	Intent k = Tools.menuSwitcher(this.getApplicationContext(), item);
+
+	if(k == null) {
+	    return false;
+	} else {
+	    startActivity(k);
+	    return true;
+	}
+    }
+
+    @Override
+    protected void onPause() {	 
+	datasource.close();
+	v_datasource.close();
+	super.onPause();
+    }
+
+    @Override
+    protected void onResume() {	
+	super.onResume();
+    }
+    
+    public class UpdateProgress extends AsyncTask<Void, Integer, Boolean> {
+	private int progress;
+	private int numberOfVisitsAlreadyUploaded;
+	private int totalNumberOfVisitsToUpload;
+	private VisitsDataSource v_database;
+
+	@Override
+	protected Boolean doInBackground(Void... arg0) {
+	    String output_result = new String();
+	    NetworkTools myNetworkTools = new NetworkTools();
+
+	    currentSettings = new SettingsDB();
+	    SettingsDataSource s_database = new SettingsDataSource(Tools.getContext());
+	    s_database.open();
+	    currentSettings = s_database.getLastSettings();
+	    s_database.close();
+
+	    // Login process 
+	    // POST request /account/login/ 
+	    List<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>(2);
+	    nameValuePairs.add(new BasicNameValuePair(myNetworkTools.PARAM_USERNAME, currentSettings.getUsername()));   
+
+	    try {
+		nameValuePairs.add(new BasicNameValuePair(myNetworkTools.PARAM_PASSWORD, Crypto.decrypt(currentSettings.getPassword()))); 
+	    } catch (Exception e) {
+		Log.v("Interoperabilty", "Error adding ValuePairs:" + e.toString());
+	    }
+
+	    output_result = myNetworkTools.executePOST(myNetworkTools.URI_LOGIN, nameValuePairs); 
+
+	    //Boolean loginOK = !myNetworkTools.stringWithinResponse(output_result, myNetworkTools.LOGIN_FAIL);
+	    
+	    if(myNetworkTools.stringWithinResponse(output_result, myNetworkTools.LOGIN_FAIL)) {
+		Tools.showToastMessageAndLog(Tools.getContext(), Tools.getStringResource(R.string.upload_login_fail_message),
+			    "UploadVisit", "Login fail");
+		return false;
+	    }
+
+	    // Check the number of visits to upload
+	    v_database = new VisitsDataSource(Tools.getContext());
+	    v_database.open();
+
+	    List<VisitDB> visitsToUpload = v_database.getAllVisitsToUpload();
+	    totalNumberOfVisitsToUpload = visitsToUpload.size();
+
+	    try {
+		// Loop
+		for(int i = 0; i < visitsToUpload.size(); i++) {
+		    VisitDB currentVisit = visitsToUpload.get(i);
+
+		    // Get the patient's visit
+		    Patient currentPatient = currentVisit.getPatient();
+
+		    List<NameValuePair> nameValuePairs_add_new_visit = new ArrayList<NameValuePair>(7);
+		    nameValuePairs_add_new_visit.add(new BasicNameValuePair(myNetworkTools.PARAM_EVALUATOR_NAME, currentPatient.getCaregiver()));  
+		    nameValuePairs_add_new_visit.add(new BasicNameValuePair(myNetworkTools.PARAM_VISIT_DATE, Tools.CalendarToStringInteroperability((Tools.StringToCalendar(currentVisit.getVisitDateString())))));   
+		    nameValuePairs_add_new_visit.add(new BasicNameValuePair(myNetworkTools.PARAM_WEIGHT, String.format(Constants.DOUBLE_FORMAT_TO_PRINT, currentVisit.getWeight())));
+		    nameValuePairs_add_new_visit.add(new BasicNameValuePair(myNetworkTools.PARAM_HEAD_CIRCUMFERENCE, String.format(Constants.DOUBLE_FORMAT_TO_PRINT, currentVisit.getHead())));
+		    nameValuePairs_add_new_visit.add(new BasicNameValuePair(myNetworkTools.PARAM_HEIGHT, String.format(Constants.DOUBLE_FORMAT_TO_PRINT, currentVisit.getLength())));
+		    nameValuePairs_add_new_visit.add(new BasicNameValuePair(myNetworkTools.PARAM_HEIGHT_POSITION, currentVisit.getPosition().toString()));
+		    nameValuePairs_add_new_visit.add(new BasicNameValuePair(myNetworkTools.PARAM_NOTES, currentVisit.getComment()));
+		    nameValuePairs_add_new_visit.add(new BasicNameValuePair(myNetworkTools.ORGANIZATION, "maventy"));
+
+		    //Patient already in database?
+		    if(currentPatient.getAlreadyInDbBoolean()) {
+			output_result = new String();
+
+			output_result = myNetworkTools.loginAndExecutePOST(myNetworkTools.URI_LOGIN, 
+				myNetworkTools.URI_ADD_VISIT_START + currentPatient.getUsernameInDb() + myNetworkTools.URI_ADD_VISIT_END, 
+				nameValuePairs, 
+				nameValuePairs_add_new_visit);
+		    } else {
+			// Search the patient
+			// Check if patient exists
+			// POST request      		    
+			List<NameValuePair> nameValuePairs_patient_search = new ArrayList<NameValuePair>(2);
+			nameValuePairs_patient_search.add(new BasicNameValuePair(myNetworkTools.PARAM_NAME, currentPatient.toStringToSearchDb()));  
+			nameValuePairs_patient_search.add(new BasicNameValuePair(myNetworkTools.PARAM_SEX, currentPatient.getSex().toString()));   
+			nameValuePairs_patient_search.add(new BasicNameValuePair(myNetworkTools.PARAM_BIRTHDATE,  Tools.CalendarToStringInteroperability((Tools.StringToCalendar(Tools.CalendarToString(currentPatient.getDateOfBirth()))))));
+
+			output_result = new String();
+			output_result = myNetworkTools.loginAndExecuteBuilder(myNetworkTools.URI_LOGIN, 
+				myNetworkTools.URI_SEARCH_PATIENT, 
+				nameValuePairs, 
+				nameValuePairs_patient_search);
+
+			try {
+			    patientFound = !myNetworkTools.stringWithinResponse(output_result, myNetworkTools.NO_PATIENT_FOUND);
+			} catch (Exception e) {
+			    patientFound = false;
+			}
+				
+			if(patientFound) {
+			    patientID = myNetworkTools.getPatientIDString(output_result);
+			    output_result = new String();
+
+			    output_result = myNetworkTools.loginAndExecutePOST(myNetworkTools.URI_LOGIN, 
+				    myNetworkTools.URI_ADD_VISIT_START + patientID + myNetworkTools.URI_ADD_VISIT_END, 
+				    nameValuePairs, 
+				    nameValuePairs_add_new_visit);
+
+			    currentPatient.setAlreadyInDbValue(Constants.BOOLEAN_TRUE);
+			    currentPatient.setUsernameInDbValue(patientID);
+			} else {
+			    // Add patient to the database + the visits + update local database with patientAlreadyInDb = true usernameInDb = patientID			    
+			    List<NameValuePair> nameValuePairs_add_new_patient_and_visit = new ArrayList<NameValuePair>();
+			    nameValuePairs_add_new_patient_and_visit.add(new BasicNameValuePair(myNetworkTools.PARAM_NAME, currentPatient.toStringToSearchDb()));  
+			    nameValuePairs_add_new_patient_and_visit.add(new BasicNameValuePair(myNetworkTools.PARAM_SEX, currentPatient.getSex().toString()));  
+			    nameValuePairs_add_new_patient_and_visit.add(new BasicNameValuePair(myNetworkTools.PARAM_BIRTHDATE, Tools.CalendarToStringInteroperability((Tools.StringToCalendar(Tools.CalendarToString(currentPatient.getDateOfBirth()))))));  
+			    nameValuePairs_add_new_patient_and_visit.add(new BasicNameValuePair(myNetworkTools.PARAM_RESIDENCE, currentPatient.getResidence()));  
+			    nameValuePairs_add_new_patient_and_visit.add(new BasicNameValuePair(myNetworkTools.PARAM_COUNTRY, Constants.COUNTRY_MADAGASCAR));  
+			    nameValuePairs_add_new_patient_and_visit.add(new BasicNameValuePair(myNetworkTools.PARAM_CAREGIVER_NAME, currentSettings.getUsername()));  
+
+			    nameValuePairs_add_new_patient_and_visit.add(new BasicNameValuePair(myNetworkTools.PARAM_POLIO_VACC_0, ""));  
+			    nameValuePairs_add_new_patient_and_visit.add(new BasicNameValuePair(myNetworkTools.PARAM_POLIO_VACC_1, ""));  
+			    nameValuePairs_add_new_patient_and_visit.add(new BasicNameValuePair(myNetworkTools.PARAM_POLIO_VACC_2, ""));  
+			    nameValuePairs_add_new_patient_and_visit.add(new BasicNameValuePair(myNetworkTools.PARAM_POLIO_VACC_3, ""));  
+			    nameValuePairs_add_new_patient_and_visit.add(new BasicNameValuePair(myNetworkTools.PARAM_POLIO_VACC_4, ""));  
+			    nameValuePairs_add_new_patient_and_visit.add(new BasicNameValuePair(myNetworkTools.PARAM_DTC_VACC_0, ""));  
+			    nameValuePairs_add_new_patient_and_visit.add(new BasicNameValuePair(myNetworkTools.PARAM_DTC_VACC_1, ""));  
+			    nameValuePairs_add_new_patient_and_visit.add(new BasicNameValuePair(myNetworkTools.PARAM_DTC_VACC_2, ""));  
+			    nameValuePairs_add_new_patient_and_visit.add(new BasicNameValuePair(myNetworkTools.PARAM_HEPB_VACC_0, ""));  
+			    nameValuePairs_add_new_patient_and_visit.add(new BasicNameValuePair(myNetworkTools.PARAM_HEPB_VACC_1, ""));  
+			    nameValuePairs_add_new_patient_and_visit.add(new BasicNameValuePair(myNetworkTools.PARAM_HEPB_VACC_2, "")); 
+			    nameValuePairs_add_new_patient_and_visit.add(new BasicNameValuePair(myNetworkTools.PARAM_MEASLES_VACC_0, "")); 
+			    nameValuePairs_add_new_patient_and_visit.add(new BasicNameValuePair(myNetworkTools.PARAM_MEASLES_VACC_1, "")); 
+			    nameValuePairs_add_new_patient_and_visit.add(new BasicNameValuePair(myNetworkTools.PARAM_MEASLES_VACC_2, "")); 
+			    nameValuePairs_add_new_patient_and_visit.add(new BasicNameValuePair(myNetworkTools.PARAM_HIB_VACC_0, "")); 
+			    nameValuePairs_add_new_patient_and_visit.add(new BasicNameValuePair(myNetworkTools.PARAM_HIB_VACC_1, "")); 		
+			    nameValuePairs_add_new_patient_and_visit.add(new BasicNameValuePair(myNetworkTools.PARAM_BCG_VACC_0, "")); 
+			    nameValuePairs_add_new_patient_and_visit.add(new BasicNameValuePair(myNetworkTools.PARAM_VITA_VACC_0, ""));
+			    nameValuePairs_add_new_patient_and_visit.add(new BasicNameValuePair(myNetworkTools.PARAM_VITA_VACC_1, ""));
+			    nameValuePairs_add_new_patient_and_visit.add(new BasicNameValuePair(myNetworkTools.PARAM_VITA_VACC_2, ""));
+			    nameValuePairs_add_new_patient_and_visit.add(new BasicNameValuePair(myNetworkTools.PARAM_DEWORMING_VACC_0, ""));
+			    nameValuePairs_add_new_patient_and_visit.add(new BasicNameValuePair(myNetworkTools.ORGANIZATION, "maventy"));
+
+			    nameValuePairs_add_new_patient_and_visit.add(new BasicNameValuePair(myNetworkTools.PARAM_EVALUATOR_NAME, currentPatient.getCaregiver()));  
+			    nameValuePairs_add_new_patient_and_visit.add(new BasicNameValuePair(myNetworkTools.PARAM_VISIT_DATE, Tools.CalendarToStringInteroperability((Tools.StringToCalendar(currentVisit.getVisitDateString())))));   
+			    nameValuePairs_add_new_patient_and_visit.add(new BasicNameValuePair(myNetworkTools.PARAM_WEIGHT, String.format(Constants.DOUBLE_FORMAT_TO_PRINT, currentVisit.getWeight())));
+			    nameValuePairs_add_new_patient_and_visit.add(new BasicNameValuePair(myNetworkTools.PARAM_HEAD_CIRCUMFERENCE, String.format(Constants.DOUBLE_FORMAT_TO_PRINT, currentVisit.getHead())));
+			    nameValuePairs_add_new_patient_and_visit.add(new BasicNameValuePair(myNetworkTools.PARAM_HEIGHT, String.format(Constants.DOUBLE_FORMAT_TO_PRINT, currentVisit.getLength())));
+			    nameValuePairs_add_new_patient_and_visit.add(new BasicNameValuePair(myNetworkTools.PARAM_HEIGHT_POSITION, currentVisit.getPosition().toString()));
+			    nameValuePairs_add_new_patient_and_visit.add(new BasicNameValuePair(myNetworkTools.PARAM_NOTES, currentVisit.getComment()));
+			    nameValuePairs_add_new_patient_and_visit.add(new BasicNameValuePair(myNetworkTools.ORGANIZATION, "maventy"));
+
+			    output_result = new String();						    
+			    output_result = myNetworkTools.loginAndExecutePOST(myNetworkTools.URI_LOGIN, 
+				    myNetworkTools.URI_ADD_PATIENT_AND_VISIT, 
+				    nameValuePairs, 
+				    nameValuePairs_add_new_patient_and_visit);
+			}
+		    }
+
+		    currentVisit.setUploadDateToday();
+
+		    //Update the view
+		    numberOfVisitsAlreadyUploaded++;
+
+		    progress = (numberOfVisitsAlreadyUploaded * 100) / totalNumberOfVisitsToUpload;
+		    publishProgress(progress);
+		}
+		
+		v_database.close();
+		
+	    } catch (Exception e) {
+		Tools.showToastMessageAndLog(Tools.getContext(), Tools.getStringResource(R.string.unknown_error),
+			"UploadVisit", "Error uploading new visits: " + e.toString());
+		return false;
+	    }
+	    return true;
+	}
+
+	@Override
+	protected void onPostExecute(Boolean result) {
+	    uploadVisits.setClickable(true);
+	    pd.dismiss();
+	}
+
+	@Override
+	protected void onPreExecute() {
+	    pd = ProgressDialog.show(UploadVisit.this, "", Tools.getStringResource(R.string.plotvisit_showing_results_working), true);
+		
+	    progress = 0;
+	    numberOfVisitsAlreadyUploaded = 0;
+	    totalNumberOfVisitsToUpload = 0;
+	}
+
+	@Override
+	protected void onProgressUpdate(Integer... values) {
+	    show_number_of_visits.setText(Integer.toString(totalNumberOfVisitsToUpload - numberOfVisitsAlreadyUploaded));
+	    progressBar.setProgress(values[0]);
+	}
+    }
+}

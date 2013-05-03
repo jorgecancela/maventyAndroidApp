@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    style="@style/LinearLayoutWrapper" >
+
+    <LinearLayout
+        android:id="@+id/layout_db_explore_patients_title_bar"
+        style="@style/TitleBar" >
+
+        <Button
+            android:id="@+id/button_back_db_explore_patients"
+            style="@style/TitleBarBackButton"
+            android:drawableLeft="@drawable/back" />
+
+        <TextView
+            android:id="@+id/textView_db_patient_info_1"
+            style="@style/TitleBarMainText"
+            android:text="@string/db_explore_patients_title" >
+        </TextView>
+
+        <Button
+            android:id="@+id/button_db_add_new_patient"
+            style="@style/TitleBarRightButton"
+            android:drawableLeft="@drawable/add_person"
+            android:text="@string/db_patient_add_title" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/layout_extra_features"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/light_green"
+        android:orientation="horizontal" >
+
+        <Button
+            android:id="@+id/button_db_explore_upload"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="@color/light_green"
+            android:drawableLeft="@drawable/upload_dark"
+            android:text="Upload"
+            android:textSize="@dimen/subtitle_text_size" />
+
+        <Button
+            android:id="@+id/button_db_explore_download"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="@color/light_green"
+            android:drawableRight="@drawable/download_dark"
+            android:text="Download"
+            android:textSize="@dimen/subtitle_text_size" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/layout_db_explore_patients_search_form"
+        android:layout_width="fill_parent"
+        android:layout_height="50sp"
+        android:background="@drawable/back_tile"
+        android:baselineAligned="false"
+        android:paddingBottom="5sp"
+        android:paddingTop="5sp"
+        android:layout_marginLeft="5sp"
+        android:layout_marginRight="5sp"
+        android:orientation="horizontal" >
+
+        <EditText
+            android:id="@+id/EditText01"
+            android:layout_width="0dip"
+            android:layout_height="fill_parent"
+            android:background="@drawable/search_form_bg"
+            android:layout_weight="5"
+      
+            android:drawableLeft="@drawable/search"
+            android:hint="@string/db_explore_patients_search" >
+        </EditText>
+
+        <Button
+            android:id="@+id/button_db_cloud"
+            android:layout_width="0dip"
+            android:layout_height="fill_parent"
+            android:layout_marginBottom="2sp"
+            android:layout_marginTop="2sp"
+            android:layout_weight="1"
+                    android:background="@drawable/back_tile"
+            
+            android:drawableBottom="@drawable/cloud"  />
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="5sp"
+        android:layout_marginRight="5sp"
+        android:layout_marginTop="5sp"
+        android:background="@color/black"
+        android:baselineAligned="true"
+        android:orientation="vertical" >
+
+        <ListView
+            android:id="@+id/list_patients"
+            android:layout_width="fill_parent"
+            android:layout_height="fill_parent"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+</LinearLayout>

@@ -1,0 +1,488 @@
+package org.maventy.android.utils;
+
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.GregorianCalendar;
+import java.util.Locale;
+
+import org.maventy.R;
+import org.maventy.android.db.SettingsDataSource;
+import org.maventy.anthro.Anthro;
+import org.maventy.anthro.Anthro.Measured;
+import org.maventy.anthro.Anthro.Sex;
+
+import android.app.Activity;
+import android.content.Context;
+import android.content.Intent;
+import android.content.res.Configuration;
+import android.net.ConnectivityManager;
+import android.net.NetworkInfo;
+import android.os.AsyncTask;
+import android.util.Log;
+import android.view.Gravity;
+import android.view.LayoutInflater;
+import android.view.MenuItem;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.Button;
+import android.widget.RadioButton;
+import android.widget.TextView;
+import android.widget.Toast;
+
+/**
+ * This class is a set of common tools for the whole project
+ * @author jcancela
+ */
+public class Tools {
+    /**
+     * This function is called just the first time the app is called. This function creates a STATIC instance of a 
+     * Anthro class. This class needs to load some CSV files, for this reason the work is done in background
+     *
+     */
+    public static class InitInBackground extends AsyncTask<Void, Integer, Boolean> {
+
+	@Override
+	protected Boolean doInBackground(Void... arg0) {
+	    
+	    try {
+		staticAnthro = new Anthro();	
+	    } catch (Exception e) {
+		Log.e("Tools", "Error starting Antro class. Exception: " + e.toString());   
+	    }
+
+	    return true;
+	}
+    }
+   
+    private static Context context;
+    private static Activity activity;
+    private static Anthro staticAnthro = null;
+
+    public static String calculateAge(Calendar birthDate, Calendar visitDate) {
+	Double diff = Double.valueOf(visitDate.getTimeInMillis() - birthDate.getTimeInMillis());
+	Double days = diff / (24 * 60 * 60 * 1000);
+	Double months = Double.valueOf(0.0);
+	Double years = Double.valueOf(0.0);
+
+	if(days > 30) {
+	    months = days / 30;
+	    if(months > 12) {
+		years = months / 12;
+		return String.format(Constants.DOUBLE_FORMAT_TO_PRINT, years) + " " + getStringResource(R.string.tools_years);
+	    } else {
+		return String.format(Constants.DOUBLE_FORMAT_TO_PRINT, months) + " " + getStringResource(R.string.tools_months);
+	    }
+	} else {
+	    return String.format(Constants.DOUBLE_FORMAT_TO_PRINT, days) + " " + getStringResource(R.string.tools_days); 
+	}
+    }
+
+    public static String CalendarToString(Calendar myDate) {
+	SimpleDateFormat formatter = new SimpleDateFormat(Constants.DATE_FORMAT_TO_STORE);
+	String sDate = formatter.format(myDate.getTime());
+
+	return sDate;
+    }
+
+    public static String CalendarToStringInteroperability(Calendar myDate) {
+	SimpleDateFormat formatter = new SimpleDateFormat(Constants.DATE_FORMAT_TO_INTEROPERABILITY);
+	String sDate = formatter.format(myDate.getTime());
+
+	return sDate;
+    }
+
+    public static String CalendarToStringToShow(Calendar myDate) {
+	SimpleDateFormat formatter = new SimpleDateFormat(Constants.DATE_FORMAT_TO_SHOW);
+	String sDate = formatter.format(myDate.getTime());
+
+	return sDate;
+    }
+
+    public static Anthro getAnthro() {
+	return Tools.staticAnthro;	  
+    }
+
+    public static Context getContext() {
+	return context;	    
+    }
+    
+    public static Activity getActivity() {
+	return activity;	    
+    }
+
+    public static String getStringResource(int myString) {
+	return context.getString(myString);
+    }
+
+    /**
+     * This function is called at beginning of the Main activity
+     */
+    public static void init() {
+	try {	
+	    if (Tools.staticAnthro == null) {
+		new InitInBackground().execute();
+	    }
+	} catch(Exception e) {
+	    Log.e("Tools", "Error at Init phase: " + e.toString());
+	}	        		
+    }
+
+    public static Calendar IntegersToCalendar(int year, int month, int day) { 
+	Calendar returnDate = new GregorianCalendar();
+	returnDate.set(Calendar.YEAR, year); 
+	returnDate.set(Calendar.MONTH, month);
+	returnDate.set(Calendar.DAY_OF_MONTH, day);
+
+	return returnDate;
+    }
+
+    /**
+     * Check the availability of the Internet conection
+     */
+    public static boolean isOnline() {
+	try {
+	    ConnectivityManager cm = (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
+	    NetworkInfo netInfo = cm.getActiveNetworkInfo();
+
+	    if (netInfo != null && netInfo.isConnectedOrConnecting()) {
+		return true;
+	    }
+
+	    return false;
+
+	} catch(Exception e) {
+	    return false;
+	}
+    }
+
+    public static Intent menuSwitcher(Context myContext, MenuItem item) {
+	Intent k = null;
+
+	switch (item.getItemId()) {
+	case R.id.MnuOpc1:
+	    try {			         	
+		k = new Intent(myContext, org.maventy.android.Main.class);
+	    } catch(Exception e) {
+		Log.e("Tools", "Error trying to start Main activity: " + e.toString());
+	    }
+
+	    return k; 
+	case R.id.MnuOpc2:
+	    try {		
+		k = new Intent(myContext, org.maventy.android.Settings.class);
+	    } catch(Exception e) {
+		Log.e("Tools", "Error trying to start Settings activity: " + e.toString());
+	    }
+
+	    return k;
+	case R.id.MnuOpc3:
+	    try {			         	
+		k = new Intent(myContext, org.maventy.android.app.ExploreDatabase.class);
+	    } catch(Exception e) {
+		Log.e("Tools", "Error trying to start Tracking Database activity: " + e.toString());
+	    }
+
+	    return k;
+	default:
+	    return null;
+	}
+    }
+    
+    public static String positionToString(Measured pos) {
+	if(pos.equals(Measured.STANDING)) {
+	    return getStringResource(R.string.tools_standing);
+	} else {
+	    return getStringResource(R.string.tools_recumbent);
+	}
+    }
+
+    public static VisitDB readParcelableVisit(VisitParcelable currentVisit) {
+
+	VisitDB  currentVisitDB = new VisitDB();
+
+	try {
+	    currentVisitDB.setSex(Tools.stringToSex(currentVisit.sex));
+
+	    currentVisitDB.setBirthDate(Tools.IntegersToCalendar(currentVisit.bYear, currentVisit.bMonth, currentVisit.bDay));
+	    currentVisitDB.setVisitDate(Tools.IntegersToCalendar(currentVisit.vYear, currentVisit.vMonth, currentVisit.vDay));
+	    currentVisitDB.setUploadDate(Tools.IntegersToCalendar(0, 0, 0));
+	    currentVisitDB.setStoredDate(Tools.IntegersToCalendar(0, 0, 0));
+
+	    currentVisitDB.setWeight(currentVisit.weight);
+	    currentVisitDB.setHead(currentVisit.head);
+	    currentVisitDB.setLength(currentVisit.length);
+	    currentVisitDB.setBMI(currentVisit.bmi);
+
+	    currentVisitDB.setPosition(Tools.stringToPosition(currentVisit.position));
+
+	    currentVisitDB.setWeightPercentile(currentVisit.weight_percentile);
+	    currentVisitDB.setWeightZscore(currentVisit.weight_zscore);
+	    currentVisitDB.setLengthPercentile(currentVisit.length_percentile);
+	    currentVisitDB.setLengthZscore(currentVisit.length_zscore);
+	    currentVisitDB.setHeadPercentile(currentVisit.head_percentile);
+	    currentVisitDB.setHeadZscore(currentVisit.head_zscore);
+	    currentVisitDB.setBMIPercentile(currentVisit.bmi_percentile);
+	    currentVisitDB.setBMIZscore(currentVisit.bmi_zscore);
+	    currentVisitDB.setWHPercentile(currentVisit.wh_percentile);
+	    currentVisitDB.setWHZscore(currentVisit.wh_zscore);
+
+	} catch(Exception e) {
+	    Log.e("Tools", "readParcelableVisit method. Exception: " + e.toString());
+	}
+	return currentVisitDB;
+    }
+
+    public static Measured readPositionRadioGroup(RadioButton radioGroup_standing, RadioButton radioGroup_recumbent) {
+	if(radioGroup_standing.isChecked()) {
+	    return Anthro.Measured.STANDING;	
+	} else {
+	    return Anthro.Measured.RECUMBENT;			
+	}
+    }	
+
+    public static Sex readSexRadioGroup(RadioButton radioGroup_male, RadioButton radioGroup_female) {
+	if(radioGroup_male.isChecked()) {
+	    return Anthro.Sex.MALE;	
+	} else {
+	    return Anthro.Sex.FEMALE;	
+	}
+    }
+
+    /** Set a context in the class. Tools is not an Activity class, setting up a context is extremely useful to 
+     * the resources (language, strings...) */
+    public static void setContext(Context mContext) {
+	if (context == null) {
+	    context = mContext;
+	}
+    }
+
+    public static void setActivity(Activity mActivity) {
+	if (mActivity != null) {
+	    activity = mActivity;
+	}
+    }
+    
+    public static void setLanguageApp(String lan, Context myContext) {
+	Locale locale = new Locale(lan);
+
+	Configuration config = new Configuration();
+	config.locale = locale;
+
+	myContext.getResources().updateConfiguration(config, myContext.getResources().getDisplayMetrics());
+    }
+
+    public static VisitParcelable setParcelableVisit(VisitDB currentVisit, Boolean newVisit) {
+	VisitParcelable  currentVisitDB = new VisitParcelable();
+
+	currentVisitDB.bDay = currentVisit.getBirthDate().get(Calendar.DAY_OF_MONTH);
+	currentVisitDB.bMonth = currentVisit.getBirthDate().get(Calendar.MONTH);
+	currentVisitDB.bYear = currentVisit.getBirthDate().get(Calendar.YEAR);
+
+	currentVisitDB.head = currentVisit.getHead();
+	currentVisitDB.length = currentVisit.getLength();
+
+	currentVisitDB.position = currentVisit.getPosition().toString();
+	currentVisitDB.sex = currentVisit.getSex().toString();
+
+	currentVisitDB.vDay = currentVisit.getVisitDate().get(Calendar.DAY_OF_MONTH);
+	currentVisitDB.vMonth = currentVisit.getVisitDate().get(Calendar.MONTH);
+	currentVisitDB.vYear = currentVisit.getVisitDate().get(Calendar.YEAR);
+
+	currentVisitDB.weight = currentVisit.getWeight();
+
+	if(newVisit) {
+	    currentVisitDB.weight_percentile = Double.valueOf(0);
+	    currentVisitDB.weight_zscore = Double.valueOf(0);
+
+	    currentVisitDB.wh_percentile = Double.valueOf(0);
+	    currentVisitDB.wh_zscore = Double.valueOf(0);
+
+	    currentVisitDB.length_percentile = Double.valueOf(0);
+	    currentVisitDB.length_zscore = Double.valueOf(0);
+
+	    currentVisitDB.head_percentile = Double.valueOf(0);
+	    currentVisitDB.head_zscore = Double.valueOf(0);
+
+	    currentVisitDB.bmi = Double.valueOf(0);
+	    currentVisitDB.bmi_percentile = Double.valueOf(0);
+	    currentVisitDB.bmi_zscore = Double.valueOf(0);
+	} else {
+	    currentVisitDB.weight_percentile = currentVisit.getWeightPercentile();
+	    currentVisitDB.weight_zscore = currentVisit.getWeightZscore();
+
+	    currentVisitDB.wh_percentile = currentVisit.getWHPercentile();
+	    currentVisitDB.wh_zscore = currentVisit.getWHZscore();
+
+	    currentVisitDB.length_percentile = currentVisit.getLengthPercentile();
+	    currentVisitDB.length_zscore = currentVisit.getLengthZscore();
+
+	    currentVisitDB.head_percentile = currentVisit.getHeadPercentile();
+	    currentVisitDB.head_zscore = currentVisit.getHeadZscore();
+
+	    currentVisitDB.bmi = currentVisit.getBMI();
+	    currentVisitDB.bmi_percentile = currentVisit.getBMIPercentile();
+	    currentVisitDB.bmi_zscore = currentVisit.getBMIZscore();
+	}
+	return currentVisitDB;
+    }
+
+    public static void setSettings(Context myContext) {
+	SettingsDataSource  s_datasource = null; //new SettingsDataSource(myContext); 
+	SettingsDB currentSet = new SettingsDB();
+
+	try {
+	    s_datasource = new SettingsDataSource(myContext);
+	    s_datasource.open();
+	    currentSet = s_datasource.getLastSettings();
+	} catch (Exception e) {
+	    Log.e("Tools", "Error opening Settings datasource" + e.toString());
+	}
+
+	if (currentSet.getLanguage() == null) {
+	    setLanguageApp("", myContext);
+	    s_datasource.close();
+	} else {
+	    setLanguageApp(currentSet.getLanguage().toString(), myContext);
+	    s_datasource.close();
+	}	
+
+	try {
+	    s_datasource.close();
+	} catch (Exception e) {
+	    Log.e("Tools", "Error closing Settings datasource" + e.toString());
+	}
+    }
+
+    public static void setSexRadioGroup(Sex sex, RadioButton radioGroup_male, RadioButton radioGroup_female) {
+	if(sex.equals(Anthro.Sex.MALE)) {
+	    radioGroup_male.setChecked(true);
+	} else {
+	    radioGroup_female.setChecked(true);	
+	}
+    }
+
+    public static String sexToString(Sex sex) {
+	if(sex.equals(Sex.MALE)) {
+	    return getStringResource(R.string.tools_male);
+	} else {
+	    return getStringResource(R.string.tools_female);
+	}
+    }
+
+    /** Prints a text message in a Toast element **/
+    public static void showToastMessageAndLog(Context context, String text, String logEntryName, String logEntryBody) {
+	customToastMessage(context, text);
+	Log.e(logEntryName, logEntryBody);
+    }
+    
+    public static void showToastMessage(Context context, String text) {
+	customToastMessage(context, text);
+    }
+    
+    public static void customToastMessage(Context context, String text){
+	
+	if (getActivity() != null){
+	//Retrieve the layout inflator
+	LayoutInflater inflater = getActivity().getLayoutInflater();
+	//Assign the custom layout to view
+	//Parameter 1 - Custom layout XML
+	//Parameter 2 - Custom layout ID present in linearlayout tag of XML
+	View layout = inflater.inflate(R.layout.toast_customized, (ViewGroup) getActivity().findViewById(R.id.toast_layout_root));
+	//Return the application context
+	 TextView toastText = (TextView) layout.findViewById(R.id.toast_customized_message);
+	 toastText.setText(text);
+	
+	Toast toast = new Toast(context);
+	toast.setGravity(Gravity.CENTER_VERTICAL, 0, 0);
+	toast.setDuration(Toast.LENGTH_LONG);
+	toast.setView(layout);
+	toast.show();
+	}
+    }
+    
+    
+    public static Calendar StringToCalendar(String myDate) {
+	SimpleDateFormat textFormat = new SimpleDateFormat(Constants.DATE_FORMAT_TO_STORE);
+	Date partial = new Date();
+	Calendar returnCalendar = new GregorianCalendar();
+
+	try {
+	    partial = textFormat.parse(myDate);
+	    returnCalendar.setTime(partial);
+	} catch (Exception ex) {
+	    return null;
+	}
+	
+	return returnCalendar;
+    }
+
+    public static Measured stringToPosition(String pos) {
+	if(pos.equals(Measured.STANDING.toString())) {
+	    return Measured.STANDING;
+	} else {
+	    return  Measured.RECUMBENT;
+	}
+    }
+
+    public static Sex stringToSex(String sex) {
+	if(sex.equals(Sex.MALE.toString())) {
+	    return Sex.MALE;
+	} else {
+	    return Sex.FEMALE;
+	}
+    }
+
+    public static void updateTextButton(Button button, int Year, int Month, int Day) {
+	Calendar date = IntegersToCalendar(Year, Month, Day);
+	button.setText(CalendarToStringToShow(date));
+    }
+
+    public static Boolean visitAfter24Months(Calendar birthDate, Calendar visitDate) {
+	Double diff = Double.valueOf(visitDate.getTimeInMillis() - birthDate.getTimeInMillis());
+	Double days = diff / (24 * 60 * 60 * 1000);
+	Double months = days / 12;
+
+	if(months > 24) {
+	    return true;
+	} else {
+	    return false; 
+	}
+    }
+
+    public static String languageStringToCode (String language){
+	
+	if(language.compareTo(Tools.getStringResource(R.string.settings_language_spanish))==0) {
+	    return Constants.LANGUAGE_ES;
+	}else if(language.compareTo(Tools.getStringResource(R.string.settings_language_french))==0) {
+	    return Constants.LANGUAGE_FR;
+	}else if(language.compareTo(Tools.getStringResource(R.string.settings_language_malagasy))==0) {
+	    return Constants.LANGUAGE_MG;
+	}else if(language.compareTo(Tools.getStringResource(R.string.settings_language_english))==0) {
+	    return Constants.LANGUAGE_EN;
+	}else {
+	    return Constants.LANGUAGE_DEFAULT;
+	}
+	
+    }
+    
+    public static String languageCodeToString (String code){
+	
+	if(code.compareTo(Constants.LANGUAGE_ES)==0) {
+	    return Tools.getStringResource(R.string.settings_language_spanish);
+	}else if(code.compareTo(Constants.LANGUAGE_FR)==0) {
+	    return Tools.getStringResource(R.string.settings_language_french);
+	}else if(code.compareTo(Constants.LANGUAGE_MG)==0) {
+	    return Tools.getStringResource(R.string.settings_language_malagasy);
+	}else if(code.compareTo(Constants.LANGUAGE_EN)==0) {
+	    return Tools.getStringResource(R.string.settings_language_english);
+	}else {
+	    return Tools.getStringResource(R.string.settings_language_english);
+	}
+	
+    }    
+
+
+
+    
+}

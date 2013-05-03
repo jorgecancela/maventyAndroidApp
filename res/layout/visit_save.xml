@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:orientation="vertical" >
+
+    <LinearLayout style="@style/TitleBar" >
+
+        <Button
+            android:id="@+id/button_back_db_patient_add"
+            style="@style/TitleBarBackButton"
+            android:drawableLeft="@drawable/back" />
+
+        <TextView
+            android:id="@+id/textEdit_db_patient_add_title"
+            style="@style/TitleBarMainText"
+            android:text="@string/db_patient_add_title" >
+        </TextView>
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/textView_save_add_comment"
+        style="@style/SubTitleBar"
+        android:layout_width="fill_parent"
+        android:text="@string/visit_save_add_comment" >
+    </TextView>
+
+    <EditText
+        android:id="@+id/editText_save_visit_coment"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:inputType="text|textMultiLine"
+        android:minLines="5" >
+    </EditText>
+
+    <Button
+        android:id="@+id/button_save_visit_save"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/visit_save_button" >
+    </Button>
+
+</LinearLayout>

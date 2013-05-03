@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/scrollView2"
+    style="@style/ScrollViewStyle" >
+           
+    <LinearLayout
+        android:id="@+id/linearLayout1"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical" >
+
+        <LinearLayout
+            style="@style/TitleBar" >
+
+            <Button
+                android:id="@+id/button_back_db_patient_add"
+            	style="@style/TitleBarBackButton"
+                android:drawableLeft="@drawable/back" />
+
+            <TextView
+                android:id="@+id/textEdit_db_patient_add_title"
+				style="@style/TitleBarMainText"
+                android:text="@string/db_patient_add_title" />
+        </LinearLayout>
+
+        <TextView
+		    style="@style/SubTitleBar"
+            android:text="@string/db_patient_add_name" >
+        </TextView>
+
+        <EditText
+            android:id="@+id/editText_patient_name"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:inputType="text|textCapWords" >
+        </EditText>
+
+        <TextView
+		    style="@style/SubTitleBar"
+            android:text="@string/db_patient_add_lastname" >
+        </TextView>
+
+        <EditText
+            android:id="@+id/editText_patient_lastname"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:inputType="text|textCapWords" >
+        </EditText>
+
+        <TextView
+		    style="@style/SubTitleBar"
+            android:text="@string/db_patient_add_residence" >
+        </TextView>
+
+        <AutoCompleteTextView
+            android:id="@+id/editText_patient_residence"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:inputType="text|textCapWords" >
+        </AutoCompleteTextView>
+
+        <TextView
+		    style="@style/SubTitleBar"
+            android:text="@string/db_patient_add_birthday" >
+        </TextView>
+
+        <LinearLayout
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content" >
+   
+            <TextView
+                android:id="@+id/addPatient_bdateDisplay"
+                android:layout_width="142dp"
+                android:layout_height="wrap_content"
+                android:text=""
+                android:textColor="#E2E2E2"
+                android:textSize="20sp" >
+            </TextView>
+
+            <Button
+                android:id="@+id/addPatient_pickDate"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/visit_new_menu_button_change_the_date" />
+
+        </LinearLayout> 
+
+        <TextView
+		    style="@style/SubTitleBar"
+            android:text="@string/db_patient_add_caregiver" >
+        </TextView>
+
+        <EditText
+            android:id="@+id/editText_patient_caregiver"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:inputType="text|textCapWords" >
+        </EditText>
+
+        <TextView
+		    style="@style/SubTitleBar"
+            android:text="@string/db_patient_add_sex" >
+        </TextView>
+
+        <RadioGroup
+            android:id="@+id/radioGroup_sex"
+		    style="@style/RadioGroup"
+            android:drawingCacheQuality="low" >
+
+            <RadioButton
+                android:id="@+id/radio_add_patient_sexMale"
+				style="@style/RadioGroupItem"
+                android:checked="true"
+                android:text="@string/visit_new_menu_sex_male" >
+            </RadioButton>
+
+            <RadioButton
+                android:id="@+id/radio_add_patient_sexFemale"
+				style="@style/RadioGroupItem"
+                android:text="@string/visit_new_menu_sex_female" >
+            </RadioButton>
+        </RadioGroup>
+
+        <LinearLayout
+            android:id="@+id/group"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content" >
+
+            <Button
+                android:id="@+id/add_patient_save"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:onClick="onClick"
+                android:text="@string/db_patient_save_button" >
+            </Button>
+
+            <Button
+                android:id="@+id/add_patient_delete"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:onClick="onClick"
+                android:text="@string/db_patient_clear_button" >
+            </Button>
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>

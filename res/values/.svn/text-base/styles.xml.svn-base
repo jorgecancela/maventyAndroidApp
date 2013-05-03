@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<resources>
+    <style name="ScrollViewStyle">
+        <item name="android:layout_width">fill_parent</item>
+        <item name="android:layout_height">fill_parent</item>
+        <item name="android:isScrollContainer">true</item>
+        <item name="android:scrollbarAlwaysDrawVerticalTrack">false</item>
+        <item name="android:scrollbarStyle">outsideInset</item>
+        <item name="android:scrollbars">vertical</item>
+    </style>
+    
+	<style name="TitleBar">
+        <item name="android:layout_width">fill_parent</item>
+        <item name="android:layout_height">@dimen/title_height</item>
+        <item name="android:orientation">horizontal</item>
+        <item name="android:gravity">right</item>
+        <item name="android:background">@color/dark_green</item>
+    </style>
+
+    <style name="TitleBarBackButton">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginLeft">0sp</item>
+        <item name="android:padding">0sp</item>
+        <item name="android:background">@color/dark_green</item>
+    </style>
+
+    <style name="TitleBarMainText">
+        <item name="android:layout_width">0dip</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:bufferType">normal</item>
+        <item name="android:textSize">20sp</item>       
+        <item name="android:textColor">@color/white</item>
+    </style>
+            
+    <style name="TitleBarRightButton">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">fill_parent</item>
+        <item name="android:layout_marginBottom">2sp</item>
+        <item name="android:layout_marginLeft">2sp</item>
+        <item name="android:layout_marginRight">2sp</item>
+        <item name="android:layout_marginTop">2sp</item>
+        <item name="android:padding">2sp</item>
+        <item name="android:textColor">@color/white</item>
+        <item name="android:gravity">right|center_vertical</item>
+        <item name="android:background">@color/dark_green</item>
+    </style>
+    
+    <style name="SubTitleBar">
+        <item name="android:layout_width">fill_parent</item>
+        <item name="android:layout_height">@dimen/subtitle_height</item>
+        <item name="android:background">@color/light_green</item>
+        <item name="android:textColor">@color/white</item>
+        <item name="android:textSize">@dimen/subtitle_text_size</item>
+        <item name="android:gravity">left|center_vertical</item>
+        <item name="android:paddingLeft">5sp</item>
+    </style>
+    
+    <style name="RadioGroup">
+        <item name="android:layout_width">fill_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:background">@color/black</item>
+        <item name="android:paddingLeft">5sp</item>
+    </style>
+  
+   <style name="RadioGroupItem">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textColor">@color/light_grey</item>
+        <item name="android:textSize">@dimen/radioGroup_item_text_size</item>
+    </style>
+    
+      <style name="EditTextFixWidth">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:minWidth">130dip</item>
+    </style>
+  
+</resources>
+
+

@@ -1,0 +1,197 @@
+package org.maventy.android;
+
+import java.util.Calendar;
+import java.util.GregorianCalendar;
+
+import org.crypto.Crypto;
+import org.maventy.R;
+import org.maventy.android.db.SettingsDataSource;
+import org.maventy.android.interoperability.CheckLogin;
+import org.maventy.android.utils.Constants;
+import org.maventy.android.utils.SettingsDB;
+import org.maventy.android.utils.Tools;
+
+import android.app.Activity;
+import android.content.Intent;
+import android.os.Bundle;
+import android.util.Log;
+import android.view.View;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.RadioButton;
+
+/**
+ * Settings Activity is used to allow the user store his preferences
+ * 
+ * @author jcancela
+ */
+public class Settings extends Activity {
+    private RadioButton spanishRadio, englishRadio, frenchRadio, malagasyRadio;
+    private String email, username, password , language, sDateStored;
+    private EditText etEmail, etUsername, etPassword;
+    private Button buttonSaveSettings, backButton;
+    private SettingsDataSource s_datasource;
+    private Calendar dateOfStored;
+
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+	super.onCreate(savedInstanceState);
+
+	// Read the last configuration stored in the database and setup the
+	// configuration	
+	Tools.setContext(this.getApplicationContext());
+	Tools.setSettings(this.getApplicationContext());
+
+	setContentView(R.layout.settings);
+
+	buttonSaveSettings = (Button) findViewById(R.id.button_save_settings);
+
+	etEmail = (EditText) findViewById(R.id.editText_settings_email);
+	etUsername = (EditText) findViewById(R.id.editText_settings_username);
+	etPassword = (EditText) findViewById(R.id.editText_settings_password);
+
+	spanishRadio = (RadioButton) findViewById(R.id.radio_language_spanish);
+	englishRadio = (RadioButton) findViewById(R.id.radio_language_english);
+	frenchRadio = (RadioButton) findViewById(R.id.radio_language_french);
+	malagasyRadio = (RadioButton) findViewById(R.id.radio_language_malagasy);
+
+	// Show current configuration (if any) in the form
+	showConfig();
+
+	backButton = (Button) findViewById(R.id.button_back_settings);
+	backButton.setOnClickListener(new View.OnClickListener() {
+	    @Override
+	    public void onClick(View view) {
+		try {	
+		    Intent k = new Intent(Settings.this, Main.class);
+		    startActivity(k);
+		} catch(Exception e) {
+		    Tools.showToastMessage(Tools.getContext(), Tools.getStringResource(R.string.settings_error_message_starting_main_class));
+		    Log.v("Settings", "Error trying to go back: " + e.toString());
+		}      		
+	    }
+	});  
+
+	buttonSaveSettings.setOnClickListener(new View.OnClickListener() {
+	    @Override
+	    public void onClick(View v) {
+
+		if(spanishRadio.isChecked()) {
+		    language = Constants.LANGUAGE_ES;
+		}
+
+		if(frenchRadio.isChecked()) {
+		    language = Constants.LANGUAGE_FR;
+		}
+
+		if(malagasyRadio.isChecked()) {
+		    language = Constants.LANGUAGE_MG;
+		}
+
+		// English is the default language
+		if(englishRadio.isChecked()) {
+		    language = Constants.LANGUAGE_DEFAULT;
+		}
+
+		dateOfStored = new GregorianCalendar();
+		dateOfStored = Calendar.getInstance();
+
+		sDateStored = Tools.CalendarToString(dateOfStored);
+
+		email = etEmail.getText().toString().trim();
+		username = etUsername.getText().toString().trim();
+		password = etPassword.getText().toString();
+
+		String[] inputString = {username, password};
+
+		// If the device is connected to check if the login details are correct
+		// if not store the login and show a message
+		if(Tools.isOnline()) {
+		    CheckLogin myCheckLogin = new CheckLogin();
+		    try {
+			myCheckLogin.execute(inputString);
+
+			if(myCheckLogin.get()) {
+			    storeSettings();
+			} else {
+			    Tools.showToastMessage(Tools.getContext() , Tools.getStringResource(R.string.settings_login_error));
+			}
+		    } catch(Exception e) {
+			Log.v("Settings" , "Exception checking the Login details: " + e.toString());
+		    }
+
+		} else {    
+		    storeSettings();
+		    Tools.showToastMessage(Tools.getContext(), Tools.getStringResource(R.string.settings_login_stored_not_checked));   
+		}	
+	    }
+	});
+    }
+
+    private void showConfig() {
+	SettingsDB currentSet = new SettingsDB();
+
+	try {
+	    s_datasource = new SettingsDataSource(this);
+	    s_datasource.open();
+	    currentSet = s_datasource.getLastSettings();
+	} catch(Exception e) {
+	    Tools.showToastMessage(this, Tools.getStringResource(R.string.settings_error_message_datasource_reading));
+	    Log.v("Settings", "Error opening Settings datasource" + e.toString());
+	}	
+
+	if(currentSet.getLanguage() == null) {
+	    englishRadio.setChecked(true);			 
+	    etEmail.setText("");
+	    etUsername.setText("");
+	    etPassword.setText("");	 
+	} else {
+	    if(currentSet.getLanguage().equals(Constants.LANGUAGE_ES)) {
+		spanishRadio.setChecked(true);
+	    }
+
+	    if(currentSet.getLanguage().equals(Constants.LANGUAGE_FR)) {
+		frenchRadio.setChecked(true);
+	    }
+
+	    if(currentSet.getLanguage().equals(Constants.LANGUAGE_MG)) {
+		malagasyRadio.setChecked(true);
+	    }
+
+	    if(currentSet.getLanguage().equals(Constants.LANGUAGE_DEFAULT)) {
+		englishRadio.setChecked(true);
+	    }
+
+	    etEmail.setText(currentSet.getEmail());
+	    etUsername.setText(currentSet.getUsername());
+
+	    try {
+		etPassword.setText(Crypto.decrypt(currentSet.getPassword()));	
+	    } catch(Exception e) {
+		Tools.showToastMessage(this, Tools.getStringResource(R.string.settings_error_message_decrypting_password));
+		Log.v("Settings" , "Exception in the decrypt process " + e.toString());
+	    }
+	}
+	s_datasource.close();
+    }
+
+    private void storeSettings() {
+	try {		    
+	    s_datasource = new SettingsDataSource(Tools.getContext());
+	    s_datasource.open();  
+	    s_datasource.createSettings(email, username, Crypto.encrypt(password), language, sDateStored);
+	} catch(Exception e) {
+	    Tools.showToastMessage(this, Tools.getStringResource(R.string.settings_error_message_datasource_saving_new_settings));
+	    Log.v("Settings", "Error saving a new Settings: " + e.toString());
+	}
+
+	try {
+	    s_datasource.close();
+	    Intent k = new Intent(Settings.this, Main.class);
+	    startActivity(k);  
+	} catch(Exception e) {
+	    Tools.showToastMessage(this, Tools.getStringResource(R.string.settings_error_message_datasource_saving_new_settings));
+	    Log.v("Settings", "Error trying to start main screen: " + e.toString());
+	}
+    }
+}

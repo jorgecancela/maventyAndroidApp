@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    style="@style/LinearLayoutWrapper" >
+
+    <LinearLayout style="@style/TitleBar" >
+
+        <Button
+            android:id="@+id/button_back_db_patient"
+            style="@style/TitleBarBackButton"
+            android:drawableLeft="@drawable/back" />
+
+        <TextView
+            android:id="@+id/textView_db_patient_info_title"
+            style="@style/TitleBarMainText"
+            android:text="@string/db_patient_title" />
+
+        <Button
+            android:id="@+id/button_db_patient_info_edit"
+            style="@style/TitleBarRightButton"
+            android:drawableLeft="@drawable/edit"
+            android:text="@string/db_patient_info_button_edit" />
+
+        <Button
+            android:id="@+id/button_db_patient_info_delete"
+            style="@style/TitleBarRightButton"
+            android:drawableLeft="@drawable/warning"
+            android:text="@string/db_patient_info_button_delete" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/linearLayout2"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/back_tile"
+        android:orientation="vertical"
+        android:padding="10sp" >
+
+        <TextView
+            android:id="@+id/textView_db_patient_info_1"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:textColor="#CCC"
+            android:textSize="19sp" />
+
+        <TextView
+            android:id="@+id/textView_db_patient_info_2"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:textColor="#CCC"
+            android:textSize="19sp" />
+
+        <TextView
+            android:id="@+id/textView_db_patient_info_3"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text=""
+            android:textColor="#CCC"
+            android:textSize="19sp" />
+    </LinearLayout>
+
+    <Button
+        android:id="@+id/button_db_patient_info_new_visit"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:background="#5FB404"
+        android:drawableLeft="@drawable/add_dark"
+        android:gravity="center_vertical|center"
+        android:paddingBottom="3sp"
+        android:paddingLeft="5sp"
+        android:paddingTop="3sp"
+        android:text="@string/db_patient_info_button_new_visit"
+        android:textColor="#000"
+        android:textSize="21sp" />
+        
+    <LinearLayout
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="5sp"
+        android:layout_marginRight="5sp"
+        android:layout_marginTop="5sp"
+        android:background="@color/black"
+        android:baselineAligned="true"
+        android:orientation="vertical" >
+
+        <ListView
+            android:id="@+id/list_visits"
+            android:layout_width="fill_parent"
+            android:layout_height="fill_parent"
+            android:textSize="12sp" />
+    </LinearLayout>
+
+</LinearLayout>

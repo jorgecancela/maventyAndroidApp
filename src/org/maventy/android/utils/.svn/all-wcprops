@@ -1,0 +1,53 @@
+K 25
+svn:wc:ra_dav:version-url
+V 81
+/svn/MalNaturedSoftware/!svn/ver/378/MaventyAndroid/src/org/maventy/android/utils
+END
+Constants.java
+K 25
+svn:wc:ra_dav:version-url
+V 96
+/svn/MalNaturedSoftware/!svn/ver/378/MaventyAndroid/src/org/maventy/android/utils/Constants.java
+END
+VisitParcelable.java
+K 25
+svn:wc:ra_dav:version-url
+V 102
+/svn/MalNaturedSoftware/!svn/ver/378/MaventyAndroid/src/org/maventy/android/utils/VisitParcelable.java
+END
+DataParcelable.java
+K 25
+svn:wc:ra_dav:version-url
+V 101
+/svn/MalNaturedSoftware/!svn/ver/378/MaventyAndroid/src/org/maventy/android/utils/DataParcelable.java
+END
+LoadMadagascarLocations.java
+K 25
+svn:wc:ra_dav:version-url
+V 110
+/svn/MalNaturedSoftware/!svn/ver/378/MaventyAndroid/src/org/maventy/android/utils/LoadMadagascarLocations.java
+END
+Tools.java
+K 25
+svn:wc:ra_dav:version-url
+V 92
+/svn/MalNaturedSoftware/!svn/ver/378/MaventyAndroid/src/org/maventy/android/utils/Tools.java
+END
+VisitDB.java
+K 25
+svn:wc:ra_dav:version-url
+V 94
+/svn/MalNaturedSoftware/!svn/ver/378/MaventyAndroid/src/org/maventy/android/utils/VisitDB.java
+END
+Patient.java
+K 25
+svn:wc:ra_dav:version-url
+V 94
+/svn/MalNaturedSoftware/!svn/ver/378/MaventyAndroid/src/org/maventy/android/utils/Patient.java
+END
+SettingsDB.java
+K 25
+svn:wc:ra_dav:version-url
+V 97
+/svn/MalNaturedSoftware/!svn/ver/378/MaventyAndroid/src/org/maventy/android/utils/SettingsDB.java
+END

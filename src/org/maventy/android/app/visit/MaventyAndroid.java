@@ -1,0 +1,441 @@
+package org.maventy.android.app.visit;
+
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Calendar;
+import java.util.regex.Pattern;
+
+import org.maventy.R;
+import org.maventy.android.Main;
+import org.maventy.android.Settings;
+import org.maventy.android.app.AddNewPatient;
+import org.maventy.android.app.ExplorePatient;
+import org.maventy.android.db.PatientsDataSource;
+import org.maventy.android.utils.Constants;
+import org.maventy.android.utils.DataParcelable;
+import org.maventy.android.utils.Patient;
+import org.maventy.android.utils.Tools;
+import org.maventy.android.utils.VisitDB;
+import org.maventy.android.utils.VisitParcelable;
+import org.maventy.anthro.Anthro.Measured;
+import org.maventy.anthro.Anthro.Sex;
+
+import android.app.Activity;
+import android.app.AlertDialog;
+import android.app.DatePickerDialog;
+import android.app.Dialog;
+import android.content.Context;
+import android.content.DialogInterface;
+import android.content.Intent;
+import android.graphics.Rect;
+import android.graphics.drawable.Drawable;
+import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
+import android.util.Log;
+import android.view.KeyEvent;
+import android.view.View;
+import android.view.inputmethod.EditorInfo;
+import android.widget.Button;
+import android.widget.DatePicker;
+import android.widget.EditText;
+import android.widget.RadioButton;
+import android.widget.TextView;
+import android.widget.TextView.OnEditorActionListener;
+
+/**
+ * This class reads the inputs for a new visit and it calls the ShowResults activity where the calculations are performed
+ * This Activity can be called from:
+ *  - ExplorePatient Activity receiving a Patient ID (to calculate a new Visit linked to this patient)
+ *  - Main Activity, without a Patient ID (to calculate a visit NOT linked to a patient)
+ *  
+ * @author jcancela
+ */
+public class MaventyAndroid extends Activity {    
+    private RadioButton positionRadioGroup_standing, positionRadioGroup_recumbent, sexRadioGroup_male, sexRadioGroup_female;
+    private int bYear, bMonth, bDay, vYear, vMonth, vDay;
+    private static final int B_DATE_DIALOG_ID = 0;
+    private static final int V_DATE_DIALOG_ID = 1;
+    private VisitDB currentVisit = new VisitDB();
+    private EditText etWeight, etHead, etLength;
+    private Button buttonGetResults, buttonBack;
+    private Button bPickDate, vPickDate, buttonSex, buttonPosition;
+    private Drawable error_indicator;
+    private int pid = 0;
+    private AlertDialog sexPopUp;
+    private String[] sexValues = {Tools.getStringResource(R.string.visit_new_menu_sex_male), 
+	    Tools.getStringResource(R.string.visit_new_menu_sex_female)};
+    private String[] positionValues = {Tools.getStringResource(R.string.visit_new_radiobutton_position_standing), 
+	    Tools.getStringResource(R.string.visit_new_radiobutton_position_recumbent)};
+    private Sex mSex;
+
+    /** The callback received when the user sets the date in the dialog **/
+    private DatePickerDialog.OnDateSetListener bDateSetListener = new DatePickerDialog.OnDateSetListener() {
+	@Override
+	public void onDateSet(DatePicker view, int year, int monthOfYear, int dayOfMonth) {
+	    bYear = year; bMonth = monthOfYear; bDay = dayOfMonth;
+	    Tools.updateTextButton(bPickDate, bYear, bMonth, bDay);
+	}
+    };
+
+    /** The callback received when the user sets the date in the dialog **/
+    private DatePickerDialog.OnDateSetListener vDateSetListener = new DatePickerDialog.OnDateSetListener() {
+	@Override
+	public void onDateSet(DatePicker view, int year, int monthOfYear, int dayOfMonth) {
+	    vYear = year; vMonth = monthOfYear; vDay = dayOfMonth;
+	    Tools.updateTextButton(vPickDate, vYear, vMonth, vDay);
+	}
+    };
+
+    /** Called when the activity is first created. */
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+	super.onCreate(savedInstanceState);
+
+	// Read the last configuration stored in the database and setup the
+	// configuration
+	Tools.setSettings(this.getApplicationContext());
+	Tools.setContext(this.getApplicationContext());
+	Tools.setActivity(MaventyAndroid.this);
+	
+	setContentView(R.layout.visit_new);
+
+	// Try to read a Patient ID
+	try {
+	    Intent i = getIntent();
+	    DataParcelable currentPatientID = (DataParcelable) i.getParcelableExtra(Constants.PATIENT_ID_PARCEL_STRING);
+	    pid = currentPatientID.intParcelable;
+	} catch (Exception e) {
+	    pid = -1;
+	}
+
+	// capture our View elements
+	bPickDate = (Button) findViewById(R.id.button_visit_new_birthdate);
+	vPickDate = (Button) findViewById(R.id.button_visit_new_visitdate);
+	
+	buttonSex = (Button) findViewById(R.id.button_visit_new_sex);
+	buttonPosition= (Button) findViewById(R.id.button_visit_new_position);
+
+	ArrayList<String> sexValuesArrayList = new ArrayList<String>(Arrays.asList(sexValues));
+
+	// This Alert Dialog shows the language options. It is the input for to set up the language preferences
+	AlertDialog.Builder sexPopUpBuilder = new AlertDialog.Builder(MaventyAndroid.this);
+	sexPopUpBuilder.setTitle(Tools.getStringResource(R.string.visit_new_alert_message_sex));
+	sexPopUpBuilder.setSingleChoiceItems(sexValues, sexValuesArrayList.indexOf(buttonSex.getText()), new DialogInterface.OnClickListener() {
+	    public void onClick(DialogInterface dialog, int item) {
+		buttonSex.setText(sexValues[item]);
+		mSex = Tools.stringToSex(sexValues[item]);
+	    }
+	});
+
+	sexPopUpBuilder.setPositiveButton(Tools.getStringResource(R.string.tools_yes),
+		new DialogInterface.OnClickListener() {
+	    public void onClick(DialogInterface dialog, int id) {
+
+	    }
+	}); 
+
+	sexPopUpBuilder.setNegativeButton(Tools.getStringResource(R.string.tools_no), 
+		new DialogInterface.OnClickListener() {
+	    public void onClick(DialogInterface dialog, int id) {
+	    }
+	});
+
+	sexPopUp = sexPopUpBuilder.create();
+	
+	//sexRadioGroup_male = (RadioButton) findViewById(R.id.radio_sexMale);
+	//sexRadioGroup_female = (RadioButton) findViewById(R.id.radio_sexFemale);
+
+	//positionRadioGroup_standing = (RadioButton) findViewById(R.id.radiobutton_position_standing);
+	//positionRadioGroup_recumbent = (RadioButton) findViewById(R.id.radiobutton_position_recumbent);
+
+	// add a click listener to the Datepicker button
+	bPickDate.setOnClickListener(new View.OnClickListener() {
+	    @Override
+	    public void onClick(View v) {
+		showDialog(B_DATE_DIALOG_ID);
+	    }
+	});
+
+	vPickDate.setOnClickListener(new View.OnClickListener() {
+	    @Override
+	    public void onClick(View v) {
+		showDialog(V_DATE_DIALOG_ID);
+	    }
+	});
+
+	// get the current date
+	final Calendar c = Calendar.getInstance();
+
+	bYear = c.get(Calendar.YEAR);
+	bMonth = c.get(Calendar.MONTH);
+	bDay = c.get(Calendar.DATE);
+	
+	vYear = c.get(Calendar.YEAR);
+	vMonth = c.get(Calendar.MONTH);
+	vDay = c.get(Calendar.DATE);
+	
+	// display the current date 
+	Tools.updateTextButton(bPickDate, bYear, bMonth, bDay);
+	Tools.updateTextButton(vPickDate, vYear, vMonth, vDay);
+
+	// Setting custom drawable instead of red error indicator,
+	error_indicator = getResources().getDrawable(R.drawable.icon);
+
+	int left = 0; int top = 0;
+	int right = error_indicator.getIntrinsicHeight();
+	int bottom = error_indicator.getIntrinsicWidth();
+
+	error_indicator.setBounds(new Rect(left, top, right, bottom));
+
+	etWeight = (EditText) findViewById(R.id.editText_weight);
+	etHead = (EditText) findViewById(R.id.editText_head);
+	etLength = (EditText) findViewById(R.id.editText_length);
+
+	// Called when user type in EditText
+	etWeight.addTextChangedListener(new InputValidator(this, etWeight));
+	etHead.addTextChangedListener(new InputValidator(this, etHead));
+	etLength.addTextChangedListener(new InputValidator(this, etLength));
+
+	// Called when an action is performed on the EditText
+	etWeight.setOnEditorActionListener(new EmptyTextListener(this, etWeight));
+	etHead.setOnEditorActionListener(new EmptyTextListener(this, etHead));
+	etLength.setOnEditorActionListener(new EmptyTextListener(this, etLength));	
+
+	if(pid != -1) {
+	    showPatientData(pid);
+	}
+
+	buttonBack = (Button) findViewById(R.id.button_back_new_visit);
+	buttonBack.setOnClickListener(new View.OnClickListener() {
+	    @Override
+	    public void onClick(View view) {
+		if(pid == -1) {
+		    try {	
+			Intent k = new Intent(MaventyAndroid.this, Main.class);
+			startActivity(k);
+		    } catch(Exception e) {
+			Tools.showToastMessageAndLog(Tools.getContext(), Tools.getStringResource(R.string.unknown_error),
+				"MaventyAndroid", "Error trying to change to Main Activity: " + e.toString());
+		    }      
+		} else {
+		    try {	
+			DataParcelable dparcelable = new DataParcelable(pid);      			      	
+
+			Intent k = new Intent(MaventyAndroid.this, ExplorePatient.class);
+			k.putExtra(Constants.PATIENT_ID_PARCEL_STRING, dparcelable);
+			startActivity(k);
+		    } catch(Exception e) {
+			Tools.showToastMessageAndLog(Tools.getContext(), Tools.getStringResource(R.string.unknown_error),
+				"MaventyAndroid", "Error trying to change to ExplorePatient Activity: " + e.toString());
+		    }   
+		}	
+	    }
+	});
+
+	buttonGetResults = (Button) findViewById(R.id.button_getResults);
+	buttonGetResults.setOnClickListener(new View.OnClickListener() {
+	    @Override
+	    public void onClick(View v) {	
+		
+		// Head circunference value can be blank if the patient is older than 24 months
+		try {
+		    currentVisit.setHead(Double.valueOf(etHead.getText().toString()));
+		} catch(Exception e) {
+		    currentVisit.setHead(Double.valueOf(0.0));
+		}
+		   
+		// Try to read the rest of the fields. All of them should be different from null
+		try {
+		    currentVisit.setSex(Tools.readSexRadioGroup(sexRadioGroup_male, sexRadioGroup_female));
+		    currentVisit.setBirthDate(Tools.IntegersToCalendar(bYear, bMonth, bDay));
+		    currentVisit.setVisitDate(Tools.IntegersToCalendar(vYear, vMonth, vDay));
+		    currentVisit.setPosition(Tools.readPositionRadioGroup(positionRadioGroup_standing, positionRadioGroup_recumbent));
+
+		    currentVisit.setWeight(Double.valueOf(etWeight.getText().toString()));
+
+		    currentVisit.setLength(Double.valueOf(etLength.getText().toString()));
+
+		    if (validateData(currentVisit.getSex(), currentVisit.getBirthDate(), currentVisit.getVisitDate(), currentVisit.getWeight(), currentVisit.getLength(), currentVisit.getHead(), currentVisit.getPosition())) {        		
+			try {	
+			    DataParcelable dparcelable = new DataParcelable(pid);
+			    VisitParcelable vparcelable = Tools.setParcelableVisit(currentVisit, true);
+
+			    Intent k = new Intent(MaventyAndroid.this, ShowResults.class);
+			    k.putExtra(Constants.VISIT_PARCEL_STRING, vparcelable);
+			    k.putExtra(Constants.PATIENT_ID_PARCEL_STRING, dparcelable);
+			    startActivity(k);
+			} catch(Exception e) {
+			    Tools.showToastMessageAndLog(Tools.getContext(), Tools.getStringResource(R.string.unknown_error),
+				    "MaventyAndroid", "Exception changing to ShowResults Activity " + e.toString());
+			}
+		    }
+
+		} catch(Exception e) {
+		    Tools.showToastMessageAndLog(Tools.getContext(), Tools.getStringResource(R.string.visit_new_alert_message_wrong_empty),
+			    "MaventyAndroid", "Empty form: " + e.toString());
+		}
+	    }
+	});
+    
+    
+    
+    
+	    buttonSex.setOnClickListener(new View.OnClickListener() {
+		    @Override
+		    public void onClick(View view) {
+			try {	
+			    sexPopUp.show();
+			} catch(Exception e) {
+			    Tools.showToastMessageAndLog(Tools.getContext(), Tools.getStringResource(R.string.unknown_error), 
+				    "MaventyAndroid", "Error on buttonSex: " + e.toString());
+			}      		
+		    }
+		});  
+    }
+    
+    @Override
+    protected Dialog onCreateDialog(int id) {
+	switch (id) {
+	case B_DATE_DIALOG_ID:
+	    return new DatePickerDialog(this, bDateSetListener, bYear, bMonth, bDay);
+
+	case V_DATE_DIALOG_ID:
+	    return new DatePickerDialog(this, vDateSetListener, vYear, vMonth, vDay);
+	}
+	return null;
+    }
+
+    /** Show patient data in the new visit form **/
+    private void showPatientData(Integer pid) {
+	// Get patient info
+	PatientsDataSource datasource = new PatientsDataSource(Tools.getContext());
+	datasource.open();
+
+	Patient myPatient = datasource.getPatientById(pid);
+
+	// Set birthdate, set sex, set caregiver,
+	bYear = myPatient.getDateOfBirth().get(Calendar.YEAR);
+	bMonth = myPatient.getDateOfBirth().get(Calendar.MONTH);
+	bDay = myPatient.getDateOfBirth().get(Calendar.DATE);
+
+	
+	Tools.updateTextButton(bPickDate, bYear, bMonth, bDay);
+	Tools.setSexRadioGroup(Tools.stringToSex(myPatient.getSex()), sexRadioGroup_male, sexRadioGroup_female);
+    }
+
+    /** Validates the data from the input form for a New Visit **/
+    private Boolean validateData(Sex sex, Calendar dateOfBirth, Calendar dateOfVisit,
+	    double weight, double lengthOrHeight, double headCircumference, Measured measured) {
+
+	try {
+
+	    if(dateOfBirth.after(dateOfVisit)) {
+		Tools.showToastMessage(this, this.getString(R.string.visit_new_alert_message_birthdate));
+		return false;
+	    }
+
+	    if(sex==null) {
+		Tools.showToastMessage(this, this.getString(R.string.visit_new_alert_message_sex));
+		return false;
+	    }
+
+	    if(measured == null) {
+		Tools.showToastMessage(this, this.getString(R.string.visit_new_alert_message_position));
+		return false;
+	    }
+
+	    if((weight >= Constants.WEIGHT_MAXIMUM_VALUE) || (weight <= Constants.WEIGHT_MINIMUM_VALUE) || (Double.isNaN(weight))) {
+		Tools.showToastMessage(this, this.getString(R.string.visit_new_alert_message_weight) + "\n" + this.getString(R.string.visit_new_alert_message_wrong_min_value) + Constants.WEIGHT_MINIMUM_VALUE.toString() + " || " + this.getString(R.string.visit_new_alert_message_wrong_max_value) + Constants.WEIGHT_MAXIMUM_VALUE.toString());
+		return false;
+	    }
+
+	    if((lengthOrHeight >= Constants.LENGTH_MAXIMUM_VALUE) || (lengthOrHeight <= Constants.LENGTH_MINIMUM_VALUE) || (Double.isNaN(lengthOrHeight))) {
+		Tools.showToastMessage(this, this.getString(R.string.visit_new_alert_message_lenght) + "\n" + this.getString(R.string.visit_new_alert_message_wrong_min_value) + Constants.LENGTH_MINIMUM_VALUE.toString() + " || " + this.getString(R.string.visit_new_alert_message_wrong_max_value) + Constants.LENGTH_MAXIMUM_VALUE.toString());
+		return false;
+	    }
+
+	    if(!Tools.visitAfter24Months(dateOfBirth, dateOfVisit)) {
+		if((headCircumference >= Constants.HEAD_MAXIMUM_VALUE) || (headCircumference <= Constants.HEAD_MINIMUM_VALUE) || (Double.isNaN(headCircumference))) {
+		    Tools.showToastMessage(this, this.getString(R.string.visit_new_alert_message_head) + "\n" + this.getString(R.string.visit_new_alert_message_wrong_min_value) + Constants.HEAD_MINIMUM_VALUE.toString() + " || " + this.getString(R.string.visit_new_alert_message_wrong_max_value) + Constants.HEAD_MAXIMUM_VALUE.toString());
+		    return false;
+		}
+	    } else {
+		headCircumference = Double.valueOf(0.0);
+	    }
+
+	} catch (Exception e) {
+	    // Feedback to the user provided before depending on the error
+	    Log.v("MaventyAndroid", "Error validating data for a new visit");
+	    return false;
+	}
+	return true;
+    }
+    
+    private class EmptyTextListener implements OnEditorActionListener {
+	private EditText et;
+	private Context context;
+
+	public EmptyTextListener(Context context, EditText editText) {
+	    this.et = editText;
+	    this.context = context;
+	}
+
+	@Override
+	public boolean onEditorAction(TextView v, int actionId, KeyEvent event) {
+
+	    if (actionId == EditorInfo.IME_ACTION_NEXT) {
+		// Called when user press Next button on the soft keyboard
+		if (et.getText().toString().equals(""))
+		    et.setError(this.context.getString(R.string.visit_new_alert_message_wrong_empty), error_indicator);
+	    }
+	    return false;
+	}
+    }
+  
+    private class InputValidator implements TextWatcher {
+	private EditText et;
+	private Context context;
+
+	private InputValidator(Context context, EditText editText) {
+	    this.et = editText;
+	    this.context = context;
+	}
+
+	@Override
+	public void afterTextChanged(Editable s) {
+	}
+
+	@Override
+	public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+	}
+
+	@Override
+	public void onTextChanged(CharSequence s, int start, int before, int count) {
+	    if (s.length() != 0) {
+		switch (et.getId()) {
+		case R.id.editText_weight: {
+		    if ((!Pattern.matches(Constants.DOUBLE_INPUT_PATTERN_OPTION_1, s)) && (!Pattern.matches(Constants.DOUBLE_INPUT_PATTERN_OPTION_2, s))) {
+			et.setError(this.context.getString(R.string.visit_new_alert_message_wrong_weight_input));
+		    }
+		}
+		break;
+
+		case R.id.editText_head: {
+		    if ((!Pattern.matches(Constants.DOUBLE_INPUT_PATTERN_OPTION_1, s)) && (!Pattern.matches(Constants.DOUBLE_INPUT_PATTERN_OPTION_2, s))) {
+			et.setError(this.context.getString(R.string.visit_new_alert_message_wrong_head_input));
+		    }
+		}
+
+		case R.id.editText_length: {
+		    if ((!Pattern.matches(Constants.DOUBLE_INPUT_PATTERN_OPTION_1, s)) && (!Pattern.matches(Constants.DOUBLE_INPUT_PATTERN_OPTION_2, s))) {
+			et.setError(this.context.getString(R.string.visit_new_alert_message_wrong_length_input));
+		    }
+		}
+		break;
+		}
+	    }
+	}
+    }
+    
+}

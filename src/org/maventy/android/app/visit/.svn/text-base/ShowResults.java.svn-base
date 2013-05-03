@@ -1,0 +1,399 @@
+package org.maventy.android.app.visit;
+
+import java.util.Calendar;
+
+import org.maventy.R;
+import org.maventy.android.db.VisitsDataSource;
+import org.maventy.android.utils.Constants;
+import org.maventy.android.utils.DataParcelable;
+import org.maventy.android.utils.Tools;
+import org.maventy.android.utils.VisitDB;
+import org.maventy.android.utils.VisitParcelable;
+import org.maventy.anthro.Anthro.Measured;
+import org.maventy.anthro.Anthro.Sex;
+import org.maventy.anthro.ScoreResult;
+import org.maventy.anthro.Visit;
+import org.maventy.anthro.VisitScores;
+
+import android.app.Activity;
+import android.app.ProgressDialog;
+import android.content.Intent;
+import android.graphics.Color;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Message;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
+import android.view.View;
+import android.widget.Button;
+import android.widget.TextView;
+
+/**
+ * This activity is used to show the results of a visit in a table format
+ * it can be called both from:
+ *  1. ExplorePatient activity with a visit ID input: DataParcelable - visitID
+ *  2. MaventyAndroid activity
+ *          - with a patient ID  and a VisitParcelable because is new visit to save for a specific patient
+ *          - with a VisitParcelable but without any patient ID
+ *
+ * Some variables are defined as static to avoid leaks 
+ */
+public class ShowResults extends Activity implements Runnable {  
+    private static ScoreResult ScoreHeadCircumferenceForAge = null;
+    private static ScoreResult ScoreWeightForLengthOrHeight = null;
+    private static ScoreResult ScoreLengthOrHeightForAge = null;
+    private static ScoreResult ScoreBodyMassIndexForAge = null;
+    private static ScoreResult ScoreWeightForAge = null;
+ 
+    private static TextView info_text, comment_text;
+    private static TextView tvWH_m, tvWH_p, tvWH_z;
+    private static TextView tvW_m, tvW_p, tvW_z;
+    private static TextView tvL_m, tvL_p, tvL_z;
+    private static TextView tvH_m, tvH_p, tvH_z;
+    private static TextView tvB_m, tvB_p, tvB_z;
+
+    private static Double vWeight, vHeadCircunference, vLength;
+    private Button buttonPlotData, buttonSaveData;
+    private Calendar vDateOfBirth, vdateOfVisit;
+    private static VisitScores vScores = null;
+    private VisitParcelable vparcelableInput;
+    private VisitsDataSource v_datasource;
+    private VisitParcelable vparcelable;
+    private static ProgressDialog pd;
+    private VisitDB currentVisitDB;
+    private Measured vPosition;
+    private Button buttonBack;
+    private int pid, vid = -1;
+    private Sex vSex;
+    
+    /** Called at the end of the thread (in this case once the triggerDataCalculation is finished). Show the results */
+    static final Handler handler = new Handler() {
+	@Override
+	public void handleMessage(Message msg) {
+	    pd.dismiss();
+	    try {
+		changeValues(vWeight, ScoreWeightForAge.getPercentile(), ScoreWeightForAge.getZscore(),
+			vLength, ScoreLengthOrHeightForAge.getPercentile(), ScoreLengthOrHeightForAge.getZscore(),
+			vHeadCircunference, ScoreHeadCircumferenceForAge.getPercentile(), ScoreHeadCircumferenceForAge.getZscore(),
+			vScores.getBodyMassIndex(), ScoreBodyMassIndexForAge.getPercentile(), ScoreBodyMassIndexForAge.getZscore(),
+			ScoreWeightForLengthOrHeight.getPercentile(), ScoreWeightForLengthOrHeight.getZscore());
+	    } catch(Exception e) {
+		Tools.showToastMessageAndLog(Tools.getContext(), Tools.getStringResource(R.string.unknown_error),
+			    "ShowResults", "Error trying to calculate a new visit " + e.toString());
+	    }
+	}
+    };
+
+    /** This function receives a VisitParcelable object and it calculates the outcome values for the visit */
+    private void calculateNewVisitOutput(VisitParcelable currentVisit) { 
+	vSex =  Tools.stringToSex(currentVisit.sex);   
+	vDateOfBirth = Tools.IntegersToCalendar(currentVisit.bYear, currentVisit.bMonth, currentVisit.bDay);
+	vdateOfVisit = Tools.IntegersToCalendar(currentVisit.vYear, currentVisit.vMonth, currentVisit.vDay);
+	vWeight = currentVisit.weight;
+	vHeadCircunference = currentVisit.head;
+	vLength = currentVisit.length;
+	vPosition =  Tools.stringToPosition(currentVisit.position);
+
+	info_text.setText(Tools.sexToString(vSex) + " " + Tools.positionToString(vPosition) + " " + Tools.calculateAge(vDateOfBirth, vdateOfVisit));
+
+	// A thread in background calculates the visit output, in foreground a ProgressDialog is shown 
+	pd = ProgressDialog.show(this, "", Tools.getStringResource(R.string.plotvisit_showing_results_working), true, false);
+	Thread thread = new Thread(this);
+	thread.start();
+    }
+
+    /** This function prints the results in the View  */
+    private static void changeValues(Double weight, Double weight_percentile, Double weight_zscore,
+	    Double length, Double length_percentile, Double length_zscore,
+	    Double head, Double head_percentile, Double head_zscore,
+	    Double bmi, Double bmi_percenile, Double bmi_zscore,
+	    Double weightForLength_percentile, Double weightForLength_zscore) {
+
+	try {
+	    updateLabelValue(tvW_m, tvW_p, tvW_z, weight, weight_percentile, weight_zscore);
+	    updateLabelValue(tvL_m, tvL_p, tvL_z, length, length_percentile, length_zscore);
+	    updateLabelValue(tvH_m, tvH_p, tvH_z, head, head_percentile, head_zscore);
+	    updateLabelValue(tvB_m, tvB_p, tvB_z, bmi, bmi_percenile, bmi_zscore);
+	    updateLabelValue(tvWH_m, tvWH_p, tvWH_z, null, weightForLength_percentile, weightForLength_zscore);
+	} catch (Exception e) {
+	    Tools.showToastMessageAndLog(Tools.getContext(), Tools.getStringResource(R.string.unknown_error),
+		    "ShowResults", "Error trying to update GUI" + e.toString());
+	}
+    }
+
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+	super.onCreate(savedInstanceState);
+
+	// Read the last configuration stored in the database and setup the
+	// configuration
+	Tools.setSettings(this);
+	Tools.setContext(this);
+
+	setContentView(R.layout.visit_show_results);
+
+	v_datasource = new VisitsDataSource(this);
+	v_datasource.open();
+
+	info_text = (TextView) findViewById(R.id.textView_info_show_results);
+	comment_text = (TextView) findViewById(R.id.textView_comment_show_results);
+
+	tvW_m = (TextView) findViewById(R.id.textView_w_m);
+	tvW_p = (TextView) findViewById(R.id.textView_w_p);
+	tvW_z = (TextView) findViewById(R.id.textView_w_z);
+
+	tvL_m = (TextView) findViewById(R.id.textView_l_m);
+	tvL_p = (TextView) findViewById(R.id.textView_l_p);
+	tvL_z = (TextView) findViewById(R.id.textView_l_z);
+
+	tvH_m = (TextView) findViewById(R.id.textView_h_m);
+	tvH_p = (TextView) findViewById(R.id.textView_h_p);
+	tvH_z = (TextView) findViewById(R.id.textView_h_z);
+
+	tvB_m = (TextView) findViewById(R.id.textView_b_m);
+	tvB_p = (TextView) findViewById(R.id.textView_b_p);
+	tvB_z = (TextView) findViewById(R.id.textView_b_z);
+
+	tvWH_m = (TextView) findViewById(R.id.textView_wh_m);
+	tvWH_p = (TextView) findViewById(R.id.textView_wh_p);
+	tvWH_z = (TextView) findViewById(R.id.textView_wh_z);
+
+	buttonBack = (Button) findViewById(R.id.button_results_back);
+	buttonBack.setOnClickListener(new View.OnClickListener() {
+	    @Override
+	    public void onClick(View view) {
+		finish();
+	    } 
+	});
+
+	buttonPlotData = (Button) findViewById(R.id.button_results_plot_data);
+	buttonPlotData.setOnClickListener(new View.OnClickListener() {
+	    @Override
+	    public void onClick(View v) {
+		try {
+		    if(vid == -1) {
+			vparcelable = new VisitParcelable(vSex.toString(), 
+				vDateOfBirth.get(Calendar.YEAR), vDateOfBirth.get(Calendar.MONTH), vDateOfBirth.get(Calendar.DAY_OF_MONTH), 
+				vdateOfVisit.get(Calendar.YEAR), vdateOfVisit.get(Calendar.MONTH), vdateOfVisit.get(Calendar.DAY_OF_MONTH),
+				vWeight, vHeadCircunference, vLength, vScores.getBodyMassIndex(), vPosition.toString(),
+				ScoreWeightForAge.getPercentile() , ScoreWeightForAge.getZscore(),
+				ScoreLengthOrHeightForAge.getPercentile(), ScoreLengthOrHeightForAge.getZscore(),
+				ScoreHeadCircumferenceForAge.getPercentile(), ScoreHeadCircumferenceForAge.getZscore(),
+				ScoreBodyMassIndexForAge.getPercentile(), ScoreBodyMassIndexForAge.getZscore(),
+				ScoreWeightForLengthOrHeight.getPercentile(), ScoreWeightForLengthOrHeight.getZscore());  
+		    } else {					 
+			vparcelable = new VisitParcelable("", 
+				0, 0, 0, 
+				0, 0, 0,
+				currentVisitDB.getWeight(), currentVisitDB.getHead(), currentVisitDB.getLength(), 
+				currentVisitDB.getBMI(), "",
+				currentVisitDB.getWeightPercentile(), currentVisitDB.getWeightZscore(),
+				currentVisitDB.getLengthPercentile(), currentVisitDB.getLengthZscore(),
+				currentVisitDB.getHeadPercentile(), currentVisitDB.getHeadZscore(),
+				currentVisitDB.getBMIPercentile(), currentVisitDB.getBMIZscore(),
+				currentVisitDB.getWHPercentile(), currentVisitDB.getWHZscore());
+		    }
+
+		    Intent k = new Intent(ShowResults.this, PlotResults.class);
+		    k.putExtra(Constants.VISIT_PARCEL_STRING, vparcelable);
+		    
+		    DataParcelable dparcelable = new DataParcelable(vid);   
+		    k.putExtra(Constants.VISIT_ID_PARCEL_STRING, dparcelable);
+		    
+		    DataParcelable dparcelablePatient = new DataParcelable(pid);   
+		    k.putExtra(Constants.PATIENT_ID_PARCEL_STRING, dparcelablePatient);
+		    
+		    startActivity(k);
+
+		} catch(Exception e) {
+		    Tools.showToastMessageAndLog(Tools.getContext(), Tools.getStringResource(R.string.unknown_error),
+			    "ShowResults", "Error changing to PlotResults: " + e.toString());
+		}
+	    }
+	});
+
+	buttonSaveData = (Button) findViewById(R.id.button_results_save_data);
+	buttonSaveData.setOnClickListener(new View.OnClickListener() {
+	    @Override
+	    public void onClick(View v) {
+
+		try {    
+		    VisitParcelable vparcelable = new VisitParcelable(vSex.toString(), 
+			    vDateOfBirth.get(Calendar.YEAR), vDateOfBirth.get(Calendar.MONTH), vDateOfBirth.get(Calendar.DAY_OF_MONTH), 
+			    vdateOfVisit.get(Calendar.YEAR), vdateOfVisit.get(Calendar.MONTH), vdateOfVisit.get(Calendar.DAY_OF_MONTH),
+			    vWeight, vHeadCircunference, vLength, vScores.getBodyMassIndex(), vPosition.toString(),
+			    ScoreWeightForAge.getPercentile(), ScoreWeightForAge.getZscore(),
+			    ScoreLengthOrHeightForAge.getPercentile(), ScoreLengthOrHeightForAge.getZscore(),
+			    ScoreHeadCircumferenceForAge.getPercentile(), ScoreHeadCircumferenceForAge.getZscore(),
+			    ScoreBodyMassIndexForAge.getPercentile(), ScoreBodyMassIndexForAge.getZscore(),
+			    ScoreWeightForLengthOrHeight.getPercentile(), ScoreWeightForLengthOrHeight.getZscore());
+
+
+		    DataParcelable dparcelable = new DataParcelable(pid); 
+
+		    Intent k = new Intent(ShowResults.this, SaveVisit.class);
+		    k.putExtra(Constants.VISIT_PARCEL_STRING, vparcelable);
+		    k.putExtra(Constants.PATIENT_ID_PARCEL_STRING, dparcelable);
+		    startActivity(k);
+		} catch(Exception e) {
+		    Tools.showToastMessageAndLog(Tools.getContext(), Tools.getStringResource(R.string.unknown_error),
+			    "ShowResults", "Error changing to saving data activity: " + e.toString());
+		}
+	    }
+	});
+
+	// Read parcelable information
+	Intent i = getIntent();	    
+
+	// Patient ID
+	try {
+	    DataParcelable currentPatientID = (DataParcelable) i.getParcelableExtra(Constants.PATIENT_ID_PARCEL_STRING);
+	    pid = currentPatientID.intParcelable;
+	} catch (Exception e) {
+	    pid = -1;
+	}
+	
+	// If there is a visitID we have to read the database to get the visit
+	// if not we have to get the visitParcelable and calculate the new visit
+	try {
+	    DataParcelable currentVisitID = (DataParcelable) i.getParcelableExtra(Constants.VISIT_ID_PARCEL_STRING);
+	    vid = currentVisitID.intParcelable;
+	    
+	    // Save button is not needed if the visit is already in the database
+	    buttonSaveData.setVisibility(View.INVISIBLE);
+	    currentVisitDB = readVisitFromDB(v_datasource, vid);
+	    showStoredVisitOutput(currentVisitDB);
+	} catch (Exception e) {
+	    vid = -1;
+	    vparcelableInput = readVisitFromParcel(i);
+	    calculateNewVisitOutput(vparcelableInput);
+	}	
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+	MenuInflater inflater = getMenuInflater();
+	inflater.inflate(R.menu.menu_button, menu);
+	return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+	Intent k = Tools.menuSwitcher(this.getApplicationContext(), item);
+
+	if(k == null) {
+	    return false;
+	} else {
+	    startActivity(k);
+	    return true;
+	}
+    }
+
+    /** Reads a visit from the database and returns a VisitDB object */
+    private VisitDB readVisitFromDB(VisitsDataSource visitsDB, int vid) {
+	VisitDB dbVisit = new VisitDB();
+
+	try {	 
+	    dbVisit = visitsDB.getVisitById(vid);
+	} catch (Exception e) {
+	    Tools.showToastMessageAndLog(Tools.getContext(), Tools.getStringResource(R.string.unknown_error),
+		    "ShowResults", "Error reading visit from db: " + e.toString());
+	}   
+	return dbVisit;
+    }
+
+    /** Reads a parcel visit and returns a VisitParcelable object */
+    private VisitParcelable readVisitFromParcel(Intent i) {
+	VisitParcelable parcelVisit = new VisitParcelable();
+	try {	 
+	    parcelVisit = (VisitParcelable) i.getParcelableExtra(Constants.VISIT_PARCEL_STRING);
+	} catch (Exception e) {
+	    Tools.showToastMessageAndLog(Tools.getContext(), Tools.getStringResource(R.string.unknown_error),
+		    "ShowResults", "Error reading visit from parcel: " + e.toString());
+	}
+	return parcelVisit;
+    }
+
+    /** This function is called when the thread is started */
+    @Override
+    public void run() {
+	triggerDataCalculation(vSex, vDateOfBirth, vdateOfVisit, vWeight, vLength, vHeadCircunference, vPosition, false); 	
+	pd.dismiss();
+	handler.sendEmptyMessage(0);
+    }
+
+    /** Shows the information of a VisitDb object */
+    private void showStoredVisitOutput(VisitDB currentVisitDB) {
+	info_text.setText(Tools.sexToString(currentVisitDB.getSex()) + " " + Tools.positionToString(currentVisitDB.getPosition()) + " " + Tools.calculateAge(currentVisitDB.getBirthDate(), currentVisitDB.getVisitDate()));
+	comment_text.setText(currentVisitDB.getComment());
+
+	try {
+	    changeValues(currentVisitDB.getWeight(), currentVisitDB.getWeightPercentile(), currentVisitDB.getWeightZscore(),
+		    currentVisitDB.getLength(), currentVisitDB.getLengthPercentile(), currentVisitDB.getLengthZscore(),
+		    currentVisitDB.getHead(), currentVisitDB.getHeadPercentile(), currentVisitDB.getHeadZscore(),
+		    currentVisitDB.getBMI(), currentVisitDB.getBMIPercentile(), currentVisitDB.getBMIZscore(),
+		    currentVisitDB.getWHPercentile(), currentVisitDB.getWHZscore());
+	} catch(Exception e) {
+	    Tools.showToastMessageAndLog(Tools.getContext(), Tools.getStringResource(R.string.unknown_error),
+		    "ShowResults", "Error showing visit data from a VisitDB object: " + e.toString());
+	}
+    }
+
+    /** Receives the form information as input an calculates the outcome of a new visit  
+     * 
+     * getAnthro contains the information to calculate the visit outcomes. It is feed with CSV files
+     * and it is a heavy tasks. For this reason, at the begining of the program a parallel thread loads in 
+     * background the CSV files. When the user arrives here we ask if getAnthro is already available. If not
+     * we sleep this thread for 1000 milliseconds and check again. GetAnthro is a static object therefore we 
+     * only need to load it once.
+     * 
+     * */
+    private void triggerDataCalculation(Sex sex, Calendar dateOfBirth, Calendar dateOfVisit,
+	    double weight, double lengthOrHeight, double headCircumference, Measured measured,
+	    boolean oedema) {
+
+	Visit myVisit = new Visit(sex, dateOfBirth.getTime(), dateOfVisit.getTime(), weight, lengthOrHeight, headCircumference, measured, oedema);
+	
+	try { 
+	    while(Tools.getAnthro() == null) {
+		Thread.sleep(1000);
+	    }
+
+	    vScores = Tools.getAnthro().getVisitScores(myVisit);
+
+	    ScoreWeightForLengthOrHeight = vScores.getWeightForLengthOrHeight(); 
+	    ScoreWeightForAge = vScores.getWeightForAge();
+	    ScoreLengthOrHeightForAge = vScores.getLengthOrHeightForAge();
+	    ScoreBodyMassIndexForAge = vScores.getBodyMassIndexForAge();
+	    ScoreHeadCircumferenceForAge = vScores.getHeadCircumferenceForAge();
+
+	} catch (Exception e) {
+	    Tools.showToastMessageAndLog(Tools.getContext(), Tools.getStringResource(R.string.unknown_error),
+		    "ShowResults", "Error showing visit data from a VisitDB object: " + e.toString());
+	}
+    }
+
+    /** Checks if the values are <1% or >99%. Changes the font color to RED if the values are out of the thresholds  */
+    private static void updateLabelValue(TextView label_value, TextView label_percentile, TextView label_zscore, Double value, Double percentile, Double zscore) {
+	label_value.setText(String.format(Constants.DOUBLE_FORMAT_TO_PRINT, value)); 	
+
+	if(percentile.isNaN()) {
+	    if(zscore < 0) {
+		label_percentile.setText(Constants.LESS_THAN_ONE_PERCENT);
+	    } else {
+		label_percentile.setText(Constants.MORE_THAN_99_PERCENT);
+	    }
+	} else {
+	    label_percentile.setText(String.format(Constants.DOUBLE_FORMAT_TO_PRINT, percentile) + Constants.PERCENTAGE);
+	}
+
+	label_zscore.setText(String.format(Constants.DOUBLE_FORMAT_TO_PRINT, zscore));
+
+	if((percentile > Constants.OVERWEIGHT_THRESHOLD)||(percentile < Constants.MALNOURISED_THRESHOLD)||(percentile.isNaN())) {
+	    label_value.setTextColor(Color.RED);
+	    label_percentile.setTextColor(Color.RED);
+	    label_zscore.setTextColor(Color.RED);
+	}
+    }
+}

@@ -1,0 +1,190 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/scrollView2"
+    style="@style/ScrollViewStyle" >  
+    <LinearLayout
+        android:id="@+id/linearLayout1"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:background="#000"
+        android:orientation="vertical" >
+
+        <RelativeLayout
+            android:id="@+id/absoluteLayout1"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:background="#000" >
+        </RelativeLayout>
+
+        <LinearLayout
+            android:id="@+id/linearLayout2"
+            android:layout_width="fill_parent"
+            android:layout_height="wrap_content"
+            android:background="#000"
+            android:orientation="vertical" >
+
+            <LinearLayout style="@style/TitleBar" >
+
+                <Button
+                    android:id="@+id/button_back_new_visit"
+                    style="@style/TitleBarBackButton"
+                    android:drawableLeft="@drawable/back" />
+
+                <TextView
+                    android:id="@+id/textEditL"
+                    style="@style/TitleBarMainText"
+                    android:text="@string/visit_new_menu_title" />
+            </LinearLayout>
+
+            <TextView
+                style="@style/SubTitleBar"
+                android:text="@string/visit_new_menu_sex" >
+            </TextView>
+
+            <RadioGroup
+                android:id="@+id/radioGroup_sex"
+                style="@style/RadioGroup" >
+
+                <RadioButton
+                    android:id="@+id/radio_sexMale"
+                    style="@style/RadioGroupItem"
+                    android:checked="true"
+                    android:text="@string/visit_new_menu_sex_male" >
+                </RadioButton>
+
+                <RadioButton
+                    android:id="@+id/radio_sexFemale"
+                    style="@style/RadioGroupItem"
+                    android:text="@string/visit_new_menu_sex_female" >
+                </RadioButton>
+            </RadioGroup>
+
+            <TextView
+                style="@style/SubTitleBar"
+                android:text="@string/visit_new_menu_birthdate" >
+            </TextView>
+
+            <RelativeLayout
+                android:id="@+id/absoluteLayout2"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:background="#000" >
+
+                <TextView
+                    android:id="@+id/bdateDisplay"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingLeft="20sp"
+                    android:paddingTop="10sp"
+                    android:text=""
+                    android:textColor="#E2E2E2"
+                    android:textSize="20sp" >
+                </TextView>
+
+                <Button
+                    android:id="@+id/bpickDate"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentRight="true"
+                    android:text="@string/visit_new_menu_button_change_the_date"
+                    android:width="140dip" >
+                </Button>
+            </RelativeLayout>
+
+            <TextView
+                style="@style/SubTitleBar"
+                android:text="@string/visit_new_menu_visitdate" >
+            </TextView>
+
+            <RelativeLayout
+                android:id="@+id/absoluteLayout3"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:background="#000" >
+
+                <TextView
+                    android:id="@+id/vdateDisplay"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:paddingLeft="20sp"
+                    android:paddingTop="10sp"
+                    android:text=""
+                    android:textColor="#E2E2E2"
+                    android:textSize="20sp" >
+                </TextView>
+
+                <Button
+                    android:id="@+id/vpickDate"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_alignParentRight="true"
+                    android:text="@string/visit_new_menu_button_change_the_date"
+                    android:width="140dip" >
+                </Button>
+            </RelativeLayout>
+
+            <TextView
+                style="@style/SubTitleBar"
+                android:text="@string/visit_new_menu_weight" >
+            </TextView>
+
+            <EditText
+                android:id="@+id/editText_weight"
+                style="@style/EditTextFixWidth"
+                android:inputType="numberDecimal" >
+            </EditText>
+
+            <TextView
+                style="@style/SubTitleBar"
+                android:text="@string/visit_new_menu_head_circunference" >
+            </TextView>
+
+            <EditText
+                android:id="@+id/editText_head"
+                style="@style/EditTextFixWidth"
+                android:inputType="numberDecimal" >
+            </EditText>
+
+            <TextView
+                style="@style/SubTitleBar"
+                android:text="@string/visit_new_menu_length" >
+            </TextView>
+
+            <EditText
+                android:id="@+id/editText_length"
+                style="@style/EditTextFixWidth"
+                android:inputType="numberDecimal" >
+            </EditText>
+
+            <TextView
+                style="@style/SubTitleBar"
+                android:text="@string/visit_new_menu_position" >
+            </TextView>
+
+            <RadioGroup
+                android:id="@+id/radioGroup2"
+                style="@style/RadioGroup" >
+
+                <RadioButton
+                    android:id="@+id/radiobutton_position_standing"
+                    style="@style/RadioGroupItem"
+                    android:text="@string/visit_new_radiobutton_position_standing" >
+                </RadioButton>
+
+                <RadioButton
+                    android:id="@+id/radiobutton_position_recumbent"
+                    style="@style/RadioGroupItem"
+                    android:text="@string/visit_new_radiobutton_position_recumbent" >
+                </RadioButton>
+            </RadioGroup>
+
+            <Button
+                android:id="@+id/button_getResults"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/visit_new_button_getResults" >
+            </Button>
+        </LinearLayout>
+    </LinearLayout>
+
+</ScrollView>

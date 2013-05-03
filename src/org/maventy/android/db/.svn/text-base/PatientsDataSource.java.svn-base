@@ -1,0 +1,214 @@
+package org.maventy.android.db;
+
+import java.util.ArrayList;
+import java.util.List;
+
+import org.maventy.android.utils.Constants;
+import org.maventy.android.utils.Patient;
+
+import android.content.ContentValues;
+import android.content.Context;
+import android.database.Cursor;
+import android.database.SQLException;
+import android.database.sqlite.SQLiteDatabase;
+import android.util.Log;
+
+public class PatientsDataSource {
+    // Database fields
+    private SQLiteDatabase database;
+    private MySQLiteHelper dbHelper;
+
+    private String[] allColumns = { 
+	    MySQLiteHelper.COLUMN_ID,
+	    MySQLiteHelper.COLUMN_CAREGIVER, 
+	    MySQLiteHelper.COLUMN_RESIDENCE,
+	    MySQLiteHelper.COLUMN_SEX,
+	    MySQLiteHelper.COLUMN_NAME,
+	    MySQLiteHelper.COLUMN_LASTNAME,
+	    MySQLiteHelper.COLUMN_DATEOFBIRTH, 
+	    MySQLiteHelper.COLUMN_ALREADY_IN_DB,
+	    MySQLiteHelper.COLUMN_USERNAME_IN_DB
+    };
+
+    public PatientsDataSource(Context context) {
+	dbHelper = new MySQLiteHelper(context);
+    }
+
+    public void close() {
+	dbHelper.close();
+    }
+
+    public Patient createPatient(String caregiver, String residence, String sex, String name,
+	    String lastname, String dateOfBirth) {
+
+	ContentValues values = new ContentValues();
+	values.put(MySQLiteHelper.COLUMN_CAREGIVER, caregiver);
+	values.put(MySQLiteHelper.COLUMN_RESIDENCE, residence);
+	values.put(MySQLiteHelper.COLUMN_SEX, sex);
+	values.put(MySQLiteHelper.COLUMN_NAME, name);
+	values.put(MySQLiteHelper.COLUMN_LASTNAME, lastname);
+	values.put(MySQLiteHelper.COLUMN_DATEOFBIRTH, dateOfBirth);
+	values.put(MySQLiteHelper.COLUMN_ALREADY_IN_DB, Constants.BOOLEAN_FALSE);
+	values.put(MySQLiteHelper.COLUMN_USERNAME_IN_DB, "");
+
+	long insertId = database.insert(MySQLiteHelper.TABLE_PATIENTS, null, values);
+
+	Cursor cursor = database.query(MySQLiteHelper.TABLE_PATIENTS, allColumns, MySQLiteHelper.COLUMN_ID + " = " + insertId, null, null, null, null);
+	cursor.moveToFirst();
+	Patient newPatient = cursorToPatient(cursor);
+	cursor.close();
+
+	return newPatient;
+    }
+
+    private Patient cursorToPatient(Cursor cursor) {
+	Patient patient = new Patient();
+
+	patient.setId(cursor.getLong(0));
+	patient.setCaregiver(cursor.getString(1));
+	patient.setResidence(cursor.getString(2));
+	patient.setSex(cursor.getString(3));
+	patient.setName(cursor.getString(4));
+	patient.setLastName(cursor.getString(5));
+	patient.setDateOfBirth(cursor.getString(6));
+	patient.setAlreadyInDb(cursor.getString(7));
+	patient.setUsernameInDb(cursor.getString(8));
+
+	return patient;
+    }
+
+    public void deletePatient(Long pid) {
+	database.delete(MySQLiteHelper.TABLE_PATIENTS, MySQLiteHelper.COLUMN_ID + " = " + pid, null);
+    }
+
+    public List<Patient> getAllPatients() {
+	List<Patient> patients = new ArrayList<Patient>();
+
+	Cursor cursor = database.query(MySQLiteHelper.TABLE_PATIENTS, allColumns, null, null, null, null, "LOWER(" + MySQLiteHelper.COLUMN_NAME + ") ASC");
+
+	cursor.moveToFirst();
+	while (!cursor.isAfterLast()) {
+	    Patient patient = cursorToPatient(cursor);
+	    patients.add(patient);
+	    cursor.moveToNext();
+	}
+	// Make sure to close the cursor
+	cursor.close();
+	database.close();
+	return patients;
+    }
+
+    public List<Patient> getAllPatientsToUpload() {
+	List<Patient> patients = new ArrayList<Patient>();
+
+	Cursor cursor = database.query(MySQLiteHelper.TABLE_PATIENTS, 
+		allColumns, 
+		MySQLiteHelper.COLUMN_ALREADY_IN_DB + "!=? ", new String[] {Constants.BOOLEAN_TRUE}, null, null, null);
+
+	cursor.moveToFirst();
+	while (!cursor.isAfterLast()) {
+	    Patient patient = cursorToPatient(cursor);
+	    patients.add(patient);
+	    cursor.moveToNext();
+	}
+	// Make sure to close the cursor
+	cursor.close();
+	return patients;
+    }
+
+    public Patient getPatientById(int patientID) {
+
+	Patient newPatient = new Patient();
+
+	try {
+	    Cursor cursor = database.query(MySQLiteHelper.TABLE_PATIENTS, allColumns, MySQLiteHelper.COLUMN_ID + " = " + (long) patientID, null, null, null, null);
+
+	    cursor.moveToFirst();
+	    newPatient = cursorToPatient(cursor);
+	    cursor.close();
+
+	    database.close();
+
+	} catch (Exception e) {
+	    Log.v("PatientDataSource", "getPatientById exception: " + e.toString());
+	}
+	return newPatient;	
+    }
+
+    public void open() throws SQLException {
+	database = dbHelper.getWritableDatabase();
+    }
+
+    public Patient searchPatient(String name, String lastName, String birthDate, String sex, String residence) {
+	Patient newPatient = new Patient();
+
+	try {
+	    Cursor cursor = database.query(MySQLiteHelper.TABLE_PATIENTS,
+		    allColumns, 
+		    MySQLiteHelper.COLUMN_NAME + "=? and " + MySQLiteHelper.COLUMN_LASTNAME + "=? and " + MySQLiteHelper.COLUMN_DATEOFBIRTH + "=? and " + MySQLiteHelper.COLUMN_SEX + "=? and " + MySQLiteHelper.COLUMN_RESIDENCE + "=?", new String[] {name, lastName, birthDate, sex, residence}, null, null, null, null);
+
+	    cursor.moveToFirst();
+	    newPatient = cursorToPatient(cursor);
+	    cursor.close();
+
+	    database.close();
+
+	} catch (Exception e) {
+	    Log.v("PatientDataSource", "searchPatient exception: " + e.toString());
+	    return null;
+	}
+	return newPatient;	
+    }
+
+    public Patient setAlreadyInDbTrue(Long pid) {	
+	ContentValues values = new ContentValues();
+
+	values.put(MySQLiteHelper.COLUMN_ALREADY_IN_DB , Constants.BOOLEAN_TRUE);
+
+	long insertId = database.update(MySQLiteHelper.TABLE_PATIENTS, values, MySQLiteHelper.COLUMN_ID + " = " + pid, null);
+
+	Cursor cursor = database.query(MySQLiteHelper.TABLE_PATIENTS, allColumns, MySQLiteHelper.COLUMN_ID + " = " + insertId, null, null, null, null);
+	cursor.moveToFirst();
+	Patient newPatient = cursorToPatient(cursor);
+	cursor.close();
+
+	return newPatient;
+    }
+
+    public Patient setDbUsername(Long pid, String username) {	
+	ContentValues values = new ContentValues();
+
+	values.put(MySQLiteHelper.COLUMN_USERNAME_IN_DB , username);
+
+	long insertId = database.update(MySQLiteHelper.TABLE_PATIENTS, values, MySQLiteHelper.COLUMN_ID + " = " + pid, null);
+
+	Cursor cursor = database.query(MySQLiteHelper.TABLE_PATIENTS, allColumns, MySQLiteHelper.COLUMN_ID + " = " + insertId, null, null, null, null);
+	cursor.moveToFirst();
+	Patient newPatient = cursorToPatient(cursor);
+	cursor.close();
+
+	return newPatient;
+    }
+
+    public Patient updatePatient(Integer pid, String caregiver, String residence, String sex, String name,
+	    String lastname, String dateOfBirth) {
+
+	ContentValues values = new ContentValues();
+	values.put(MySQLiteHelper.COLUMN_CAREGIVER, caregiver);
+	values.put(MySQLiteHelper.COLUMN_RESIDENCE, residence);
+	values.put(MySQLiteHelper.COLUMN_SEX, sex);
+	values.put(MySQLiteHelper.COLUMN_NAME, name);
+	values.put(MySQLiteHelper.COLUMN_LASTNAME, lastname);
+	values.put(MySQLiteHelper.COLUMN_DATEOFBIRTH, dateOfBirth);
+
+	long insertId = database.update(MySQLiteHelper.TABLE_PATIENTS, values, MySQLiteHelper.COLUMN_ID + " = " + pid, null);
+
+	Cursor cursor = database.query(MySQLiteHelper.TABLE_PATIENTS, allColumns, MySQLiteHelper.COLUMN_ID + " = " + insertId, null, null, null, null);
+	cursor.moveToFirst();
+	Patient newPatient = cursorToPatient(cursor);
+	cursor.close();
+
+	return newPatient;
+    }
+}
+

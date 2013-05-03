@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    style="@style/LinearLayoutWrapper" >
+
+    <LinearLayout style="@style/TitleBar" >
+
+        <Button
+            android:id="@+id/button_back_settings"
+            style="@style/TitleBarBackButton"
+            android:drawableLeft="@drawable/back" />
+
+        <TextView
+            style="@style/TitleBarMainText"
+            android:text="@string/settings_main_menu" />
+        
+    </LinearLayout>
+
+    <ScrollView
+        style="@style/ScrollViewStyle" >
+
+        <LinearLayout style="@style/inputFormLayout" >
+
+            <LinearLayout
+                style="@style/inputFormEntryLayout"
+                android:background="@drawable/top_layout_form_bg" >
+
+                <TextView
+                    style="@style/inputFormEntryLayoutTextView"
+                    android:text="@string/settings_email" >
+                </TextView>
+
+                <EditText
+                    android:id="@+id/editText_settings_email"
+                    style="@style/inputFormEntryLayoutTextEdit"
+                    android:hint="@string/settings_email"
+                    android:inputType="text|textEmailAddress" >
+                </EditText>
+            </LinearLayout>
+
+            <LinearLayout
+                style="@style/inputFormEntryLayout"
+                android:background="@drawable/middle_layout_form_bg" >
+
+                <TextView
+                    style="@style/inputFormEntryLayoutTextView"
+                    android:text="@string/settings_language" >
+                </TextView>
+
+                <Button
+                    android:id="@+id/button_show_language"
+                    style="@style/inputFormEntryLayoutButton" >
+                </Button>
+            </LinearLayout>
+
+            <LinearLayout
+                style="@style/inputFormEntryLayout"
+                android:background="@drawable/middle_layout_form_bg" >
+
+                <TextView
+                    style="@style/inputFormEntryLayoutTextView"
+                    android:text="@string/settings_username" >
+                </TextView>
+
+                <EditText
+                    android:id="@+id/editText_settings_username"
+                    style="@style/inputFormEntryLayoutTextEdit"
+                    android:hint="@string/settings_username"
+                    android:inputType="text" >
+                </EditText>
+            </LinearLayout>
+
+            <LinearLayout
+                style="@style/inputFormEntryLayout"
+                android:background="@drawable/bottom_layout_form_bg" >
+
+                <TextView
+                    style="@style/inputFormEntryLayoutTextView"
+                    android:text="@string/settings_password" >
+                </TextView>
+
+                <EditText
+                    android:id="@+id/editText_settings_password"
+                    style="@style/inputFormEntryLayoutTextEdit"
+                    android:hint="@string/settings_password"
+                    android:inputType="text|textPassword" >
+                </EditText>
+            </LinearLayout>
+
+            <Button
+                android:id="@+id/button_save_settings"
+                android:layout_width="fill_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="15sp"
+                android:text="@string/button_save_settings" >
+            </Button>
+        </LinearLayout>
+    </ScrollView>
+
+</LinearLayout>

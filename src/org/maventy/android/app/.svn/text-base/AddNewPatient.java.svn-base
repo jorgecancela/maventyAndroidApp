@@ -1,0 +1,501 @@
+package org.maventy.android.app;
+
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.GregorianCalendar;
+
+import org.maventy.R;
+import org.maventy.android.db.PatientsDataSource;
+import org.maventy.android.utils.Constants;
+import org.maventy.android.utils.DataParcelable;
+import org.maventy.android.utils.LoadMadagascarLocations;
+import org.maventy.android.utils.Patient;
+import org.maventy.android.utils.Tools;
+import org.maventy.anthro.Anthro.Sex;
+
+import android.app.Activity;
+import android.app.AlertDialog;
+import android.app.DatePickerDialog;
+import android.app.Dialog;
+import android.app.ProgressDialog;
+import android.content.DialogInterface;
+import android.content.Intent;
+import android.os.AsyncTask;
+import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
+import android.util.Log;
+import android.view.View;
+import android.widget.ArrayAdapter;
+import android.widget.AutoCompleteTextView;
+import android.widget.Button;
+import android.widget.DatePicker;
+import android.widget.EditText;
+import android.widget.RadioButton;
+import android.widget.TextView;
+
+/**
+ *   This Activity is called to:
+ *    + Add a new patient
+ *    + Edit an already existing patient (in this case the class receives a DataParcelable patientID)
+ *    
+ *    AddNewPactient implements a Runnable and it has an inner AsyncTask 
+ *    
+ *    @author jcancela
+ */
+public class AddNewPatient extends Activity implements Runnable {  
+    private RadioButton patientSexRadioGroup_male, patientSexRadioGroup_female;
+    private Button buttonSaveData, buttonClear, backButton, bPickDate;
+    private static Boolean FLAG_AUTOCOMPLETE_SWITCHED_ON = false; 
+    private static final int PATIENT_BIRTH_DATE_DIALOG_ID = 300;
+    private String Name, Lastname, Residence, Caregiver;
+    private EditText etName, etLastName, etCaregiver;
+    private LoadMadagascarLocations locationNames;
+    private Calendar currentCalendar, dateOfBirth;
+    private AutoCompleteTextView etResidence;
+    private PatientsDataSource datasource;
+    private ArrayAdapter<String> adapter;
+    private LoadMadagascarLocation task;
+    private int bYear, bMonth, bDay;
+    private AlertDialog alertDialog; 
+    private TextView bDateDisplay;
+    private ProgressDialog pd;
+    private Sex sex = null;
+    private int pid = -1;
+
+    /** the callback received when the user "sets" the date in the dialog **/
+    private DatePickerDialog.OnDateSetListener pbDateSetListener = new DatePickerDialog.OnDateSetListener() {
+	@Override
+	public void onDateSet(DatePicker view, int year, int monthOfYear,
+		int dayOfMonth) {
+	    bYear = year;
+	    bMonth = monthOfYear;
+	    bDay = dayOfMonth;
+
+	    Tools.updateDateDisplay(bDateDisplay, bYear, bMonth, bDay);
+	}
+    };
+
+    /** reads  **/
+    private void addPatient(Integer pid) {
+	dateOfBirth = new GregorianCalendar();
+
+	sex = Tools.readSexRadioGroup(patientSexRadioGroup_male, patientSexRadioGroup_female);
+
+	dateOfBirth.set(Calendar.YEAR, bYear);
+	dateOfBirth.set(Calendar.MONTH, bMonth);
+	dateOfBirth.set(Calendar.DAY_OF_MONTH, bDay);
+
+	Name = etName.getText().toString().trim();
+	Lastname = etLastName.getText().toString().trim();
+	Residence = etResidence.getText().toString().trim();
+	Caregiver = etCaregiver.getText().toString().trim();
+
+	// Caregiver can be blank. Anyway an AlertDialog will be shown to the user before proceed
+	if (Caregiver.equals("") || Caregiver.equals(null)) {
+	    //Alert message
+	    alertDialog.setIcon(android.R.drawable.ic_dialog_alert);
+	    alertDialog.setTitle(R.string.db_patient_add_alert_caregiver_title);
+	    alertDialog.setMessage(Tools.getStringResource(R.string.db_patient_add_alert_caregiver_message));
+
+	    alertDialog.setCancelable(false);
+
+	    alertDialog.setButton(Tools.getStringResource(R.string.db_patient_add_yes), new DialogInterface.OnClickListener() {
+		@Override
+		public void onClick(DialogInterface dialog, int which) {
+		    // Proceed to validate the other fields
+		    validateDataAndAddNewPatient(sex, dateOfBirth, Name, Lastname, Residence);
+		}
+	    });
+
+	    alertDialog.setButton2(Tools.getStringResource(R.string.db_patient_add_no), new DialogInterface.OnClickListener() {
+		@Override
+		public void onClick(DialogInterface dialog, int which) {
+		    // Go back to edition form
+		    alertDialog.cancel();
+		}
+	    });
+
+	    alertDialog.show();
+	} else {
+	    validateDataAndAddNewPatient(sex, dateOfBirth, Name, Lastname, Residence);
+	}
+    }
+
+    @Override
+    public void onCreate(Bundle savedInstanceState) {
+	super.onCreate(savedInstanceState);
+
+	// Read the last configuration stored in the database and setup the
+	// configuration
+	try {
+	    Tools.setContext(this);
+	    Tools.setSettings(this);
+	} catch (Exception e) {
+	    Tools.showToastMessageAndLog(Tools.getContext(), Tools.getStringResource(R.string.unknown_error),
+		    "AddNewPatient", "Error onResume " + e.toString());
+	}
+
+	setContentView(R.layout.db_patient_add);
+
+	alertDialog =  new AlertDialog.Builder(this).create();
+
+	datasource = new PatientsDataSource(this);
+	datasource.open();
+
+	bDateDisplay = (TextView) findViewById(R.id.addPatient_bdateDisplay);
+	bPickDate = (Button) findViewById(R.id.addPatient_pickDate);
+
+	bPickDate.setOnClickListener(new View.OnClickListener() {
+	    @Override
+	    public void onClick(View v) {
+		showDialog(PATIENT_BIRTH_DATE_DIALOG_ID);
+	    }
+	});
+
+	// get the current date
+	currentCalendar = Calendar.getInstance();
+	bYear = currentCalendar.get(Calendar.YEAR);
+	bMonth = currentCalendar.get(Calendar.MONTH);
+	bDay = currentCalendar.get(Calendar.DAY_OF_MONTH);
+
+	// display the current date
+	Tools.updateDateDisplay(bDateDisplay, bYear, bMonth, bDay);
+
+	etName = (EditText) findViewById(R.id.editText_patient_name);
+	etLastName = (EditText) findViewById(R.id.editText_patient_lastname);
+	etResidence = (AutoCompleteTextView) findViewById(R.id.editText_patient_residence);
+	etCaregiver = (EditText) findViewById(R.id.editText_patient_caregiver);
+
+	// Loading locations file is a heavy task. In loadLocalities a new thread is launched in background
+	// In foreground a Progress Dialog is shown
+	loadLocalities();
+
+	// Residence input box is not a plain EditText box. It is a AutoCompleteTextView, this kind of EditBox displays	
+	// a dropdown-menu with several options. Usually, to initialize a AutocompleteTextView we just need to pass
+	// the context, the dropdown template and an array with the strings options as input.
+	//
+	// adapter = new ArrayAdapter<String>(this, android.R.layout.simple_dropdown_item_1line, OPTIONS_ARRAY);
+	//
+	// Nevertheless, in this case, due to the huge amount of data in the string array ~12.000 items makes this 
+	// approach inviable (it sends the whole array to the view).
+	// We add a TextWatcher to the AutoCompleteTextView. When the user is typing a AsyncTask is launched in background. 
+	// This AsyncTasck looks for a subset of the array with the options that best match what the user type in the box.
+	adapter = new ArrayAdapter<String>(this, android.R.layout.simple_dropdown_item_1line);
+	etResidence = (AutoCompleteTextView) findViewById(R.id.editText_patient_residence);
+
+	adapter.setNotifyOnChange(true);
+	etResidence.setAdapter(adapter);
+
+	etResidence.addTextChangedListener(new TextWatcher() {
+
+	    @Override
+	    public void onTextChanged(CharSequence s, int start, int before, int count) {
+		if (FLAG_AUTOCOMPLETE_SWITCHED_ON) {
+		    adapter.clear();
+		    task = new LoadMadagascarLocation();
+		    task.execute(etResidence.getText().toString());
+		}
+	    }
+
+	    @Override
+	    public void beforeTextChanged(CharSequence s, int start, int count,
+		    int after) { 
+	    }
+
+	    @Override
+	    public void afterTextChanged(Editable s) { }
+	});
+
+	patientSexRadioGroup_male = (RadioButton) findViewById(R.id.radio_add_patient_sexMale);
+	patientSexRadioGroup_female = (RadioButton) findViewById(R.id.radio_add_patient_sexFemale);
+
+	try {
+	    Intent i = getIntent();
+	    DataParcelable currentPatientID = (DataParcelable) i.getParcelableExtra(Constants.PATIENT_ID_PARCEL_STRING);
+	    pid = currentPatientID.intParcelable;
+	} catch (Exception e) {
+	    pid = -1;
+	    FLAG_AUTOCOMPLETE_SWITCHED_ON = true;
+	}
+
+	if (pid != -1) {
+	    try {		
+		showPatient(pid);
+	    } catch (Exception e) {
+		Tools.showToastMessageAndLog(Tools.getContext(), Tools.getStringResource(R.string.unknown_error),
+			"AddNewPatient" , "Error showing patient info " + e.toString());
+	    }
+	} 
+
+	buttonSaveData = (Button) findViewById(R.id.add_patient_save);	
+	buttonSaveData.setOnClickListener(new View.OnClickListener() {
+	    @Override
+	    public void onClick(View v) {
+		addPatient(pid);		
+	    }
+	});
+
+	buttonClear = (Button) findViewById(R.id.add_patient_delete);	
+	buttonClear.setOnClickListener(new View.OnClickListener() {
+	    @Override
+	    public void onClick(View v) {
+		clearForm();		
+	    }
+	});
+
+	backButton = (Button) findViewById(R.id.button_back_db_patient_add);
+	backButton.setOnClickListener(new View.OnClickListener() {
+	    @Override
+	    public void onClick(View view) {
+
+		if (pid == -1) {
+		    try {
+			Intent k = new Intent(AddNewPatient.this, ExploreDatabase.class);
+			startActivity(k);
+
+		    } catch (Exception e) {
+			Tools.showToastMessageAndLog(Tools.getContext(), Tools.getStringResource(R.string.unknown_error),
+				"AddNewPatient" , "Error trying to go back: " + e.toString());
+		    }  
+
+		} else {
+
+		    try {	
+			DataParcelable dparcelable = new DataParcelable(pid);      			      	
+
+			Intent k = new Intent(AddNewPatient.this, ExplorePatient.class);
+			k.putExtra(Constants.PATIENT_ID_PARCEL_STRING, dparcelable);
+			startActivity(k);
+
+		    } catch (Exception e) {
+			Tools.showToastMessageAndLog(Tools.getContext(), Tools.getStringResource(R.string.unknown_error),
+				"AddNewPatient" , "Error trying to go back: " + e.toString());
+		    }
+		}	
+	    }
+	});  
+    }
+
+    /** This method trigger a background thread where the Location file is loaded. In foreground a ProgressDialog is shown **/
+    private void loadLocalities() {		
+	pd = ProgressDialog.show(this, "", Tools.getStringResource(R.string.plotvisit_showing_results_working), true, false);
+	Thread thread = new Thread(this);
+	thread.start();
+    }
+
+    /** This method runs when thread.start() is called **/
+    @Override
+    public void run() {
+	FLAG_AUTOCOMPLETE_SWITCHED_ON = false;
+
+	try {
+	    locationNames = new LoadMadagascarLocations();
+	} catch (Exception e) {
+	    Tools.showToastMessageAndLog(Tools.getContext(), Tools.getStringResource(R.string.unknown_error),
+		    "AddNewPatient", "Error on run() " + e.toString());
+	}
+
+	pd.dismiss();
+	FLAG_AUTOCOMPLETE_SWITCHED_ON = true;
+    }
+
+    @Override
+    protected Dialog onCreateDialog(int id) {
+	switch (id) {
+	case PATIENT_BIRTH_DATE_DIALOG_ID:
+	    return new DatePickerDialog(this, pbDateSetListener, bYear, bMonth, bDay);
+	}
+	return null;
+    }
+
+    @Override
+    protected void onPause() {
+	datasource.close();
+	super.onPause();
+    }
+
+    @Override
+    protected void onResume() {
+	try {
+	    Tools.setContext(this);
+	    Tools.setSettings(this);
+	} catch (Exception e) {
+	    Tools.showToastMessageAndLog(Tools.getContext(), Tools.getStringResource(R.string.unknown_error),
+		    "AddNewPatient", "Error onResume " + e.toString());
+	}
+	super.onResume();
+    }
+
+    /** Retrieves the patient with id: pid from the database and shows her/him data */
+    private void showPatient(int pid) {
+	PatientsDataSource pDataSource = new PatientsDataSource(Tools.getContext());
+
+	try {
+	    FLAG_AUTOCOMPLETE_SWITCHED_ON = false;
+	    pDataSource.open();
+
+	    Patient myPatient = pDataSource.getPatientById(pid);	
+
+	    etName.setText(myPatient.getName());
+	    etLastName.setText(myPatient.getLastName());
+	    etResidence.setText(myPatient.getResidence());
+
+	    etCaregiver.setText(myPatient.getCaregiver());
+
+	    Tools.setSexRadioGroup(Tools.stringToSex(myPatient.getSex()), patientSexRadioGroup_male, patientSexRadioGroup_female);
+
+	    currentCalendar = myPatient.getDateOfBirth();
+	    bYear = currentCalendar.get(Calendar.YEAR);
+	    bMonth = currentCalendar.get(Calendar.MONTH);
+	    bDay = currentCalendar.get(Calendar.DAY_OF_MONTH);
+
+	    // display the current date
+	    Tools.updateDateDisplay(bDateDisplay, bYear, bMonth, bDay);
+
+	    FLAG_AUTOCOMPLETE_SWITCHED_ON = true;
+
+	} catch (Exception e) {
+	    Tools.showToastMessageAndLog(Tools.getContext(), Tools.getStringResource(R.string.unknown_error),
+		    "AddNewPatient" , "Error showing patient info " + e.toString());
+	}
+    }
+
+    private void clearForm() {
+	try {
+	    FLAG_AUTOCOMPLETE_SWITCHED_ON = false;
+
+	    etName.setText("");
+	    etLastName.setText("");
+	    etResidence.setText("");
+	    etCaregiver.setText("");
+
+	    bYear = currentCalendar.get(Calendar.YEAR);
+	    bMonth = currentCalendar.get(Calendar.MONTH);
+	    bDay = currentCalendar.get(Calendar.DAY_OF_MONTH);
+
+	    // display the current date
+	    Tools.updateDateDisplay(bDateDisplay, bYear, bMonth, bDay);
+
+	    FLAG_AUTOCOMPLETE_SWITCHED_ON = true;
+	} catch (Exception e) {
+	    Tools.showToastMessageAndLog(Tools.getContext(), Tools.getStringResource(R.string.unknown_error),
+		    "AddNewPatient" , "Error cleaning form: " + e.toString());
+	}
+    }
+
+    private Boolean validateDataAndAddNewPatient(Sex sex, Calendar dateOfBirth, String Name,
+	    String Lastname, String Residence) {  
+	if (validateData(sex, dateOfBirth, Name, Lastname, Residence)) {
+	    try {
+		String sDate  = Tools.CalendarToString(dateOfBirth);
+
+		if (pid == -1) {
+		    datasource.createPatient(Caregiver, Residence, sex.toString(),
+			    Name, Lastname, sDate);
+		} else {
+		    datasource.updatePatient(pid, Caregiver, Residence, sex.toString(),
+			    Name, Lastname, sDate);
+		}
+
+		datasource.close();
+
+		// And switch to the ExploreDatabase activity
+		Intent k = new Intent(AddNewPatient.this, ExploreDatabase.class);
+		startActivity(k);
+	    } catch (Exception e) {
+		Tools.showToastMessageAndLog(Tools.getContext(), Tools.getStringResource(R.string.unknown_error),
+			"AddNewPatient" , "Error saving data: " + e.toString());
+	    }
+	    return true;
+	} else {
+	    return false;
+	}
+    }
+
+    private Boolean validateData(Sex sex, Calendar dateOfBirth, String Name,
+	    String Lastname, String Residence) {
+
+	// Name, lastname and residence are mandatory fields if any of them are null or blank a error message will be showed 
+	if (Name.equals(null) || Name.equals("") 
+		|| Lastname.equals(null) || Lastname.equals("") 
+		|| Residence.equals(null) || Residence.equals("")) {
+
+	    Tools.showToastMessage(this.getApplicationContext(), Tools.getStringResource(R.string.db_patient_add_error_empty_form));
+	    return false;
+	    
+	} else {
+
+	    // Validate patient. Check if the patient is already in the database
+	    PatientsDataSource pSource = new PatientsDataSource(this.getApplicationContext());
+	    Patient myPatient = pSource.searchPatient(Name, Lastname, Tools.CalendarToString(dateOfBirth), sex.toString(), Residence);
+
+	    // If null this patient is not in the database
+	    if (myPatient == null) {
+		return true;
+	    } else {
+		Tools.showToastMessage(this.getApplicationContext(), Tools.getStringResource(R.string.db_patient_add_error_already_in_db));
+		return false;
+	    }
+	}
+    }
+
+    /**
+     *   LoadMadagascarLocation is called each time the user type something in the Residence EditText box.   
+     *   Is creates a thread in background where a string (args[0]) which is the string typed in EditText so far
+     *   is compared with the all the locations names stored in ArrayList. Args[0] can be a substring of a 
+     *   full location name. Finally the AsyncTask proposes a subset of locations that better match args[0]
+     */
+    class LoadMadagascarLocation extends AsyncTask<String, Void, ArrayList<String>>
+    {
+	@Override
+	protected ArrayList<String> doInBackground(String... args) { 
+	    ArrayList<String> predictionsArr = new ArrayList<String>();
+
+	    try {
+		int counter = Constants.OPTIONS_SHOWN_IN_LOCATIONS_AUTOCOMPLETE_EDITTEXT;
+		predictionsArr.clear();
+
+		for (String s : locationNames.getArrayList()) {
+
+		    if (counter > 0) {
+			if (s.toLowerCase().contains(args[0].toLowerCase())) {
+			    predictionsArr.add(s);
+			    counter--;
+			}
+		    } else {
+			break;
+		    }
+		}
+	    } catch (Exception e) {
+		// WARNING! Do  not lauch toast message within this AsyncTask
+		Log.v("AddNewPatient", "Exception within LoadMadagascarLocation AsyncTask " + e.toString());
+	    }
+	    return predictionsArr;
+	}
+
+	@Override
+	protected void onPostExecute(ArrayList<String> result) {
+	    try {
+		adapter = new ArrayAdapter<String>(getBaseContext(), android.R.layout.simple_dropdown_item_1line);
+		adapter.setNotifyOnChange(true);
+
+		for (String string : result) {
+		    adapter.add(string);
+		    adapter.notifyDataSetChanged();
+		}
+
+		etResidence.setAdapter(adapter);
+		etResidence.showDropDown();
+
+	    } catch (Exception e) {
+		// WARNING! Do  not lauch toast message within this AsyncTask
+		Log.v("AddNewPatient", "Exception within LoadMadagascarLocation AsyncTask " + e.toString());
+	    }
+	}
+    }
+}
+
+
+
+

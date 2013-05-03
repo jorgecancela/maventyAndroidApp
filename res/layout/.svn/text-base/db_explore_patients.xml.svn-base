@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="fill_parent"
+    android:layout_height="fill_parent"
+    android:orientation="vertical" >
+
+    <LinearLayout style="@style/TitleBar" >
+
+        <Button
+            android:id="@+id/button_back_db_explore_patients"
+            style="@style/TitleBarBackButton"
+            android:drawableLeft="@drawable/back" />
+
+        <TextView
+            android:id="@+id/textView_db_patient_info_1"
+            style="@style/TitleBarMainText"
+            android:text="@string/db_explore_patients_title" >
+        </TextView>
+
+        <Button
+            android:id="@+id/button_db_add_new_patient"
+            style="@style/TitleBarRightButton"
+            android:drawableLeft="@drawable/add_person"
+            android:text="@string/db_patient_add_title" />
+    </LinearLayout>
+
+    <EditText
+        android:id="@+id/EditText01"
+        android:layout_width="fill_parent"
+        android:layout_height="47dp"
+        android:layout_marginTop="2sp"
+        android:drawableLeft="@drawable/search"
+        android:hint="@string/db_explore_patients_search" >
+    </EditText>
+
+    <TextView
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:background="#5FB404"
+        android:text=""
+        android:textColor="#FFF"
+        android:textSize="1sp" >
+    </TextView>
+
+    <ListView
+        android:id="@android:id/list"
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content" />
+
+</LinearLayout>
